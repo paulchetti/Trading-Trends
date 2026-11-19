@@ -73,7 +73,7 @@ export function AdminDashboard() {
     aadharNo: '',
     panNo: '',
     initialBalance: 200,
-    dailyGrowthRate: 3,
+    dailyGrowthRate: 1,
     status: 'ACTIVE',
     sendEmailToUser: true
   });
@@ -85,7 +85,7 @@ export function AdminDashboard() {
   const [botTrades, setBotTrades] = useState([]);
   const [botConfig, setBotConfig] = useState({
     status: 'ACTIVE',
-    dailyYield: '+3.0% / Day',
+    dailyYield: '+1.0% / Day',
     winRate: '94.2%',
     schedule: 'Monday – Friday',
     riskProtocol: 'Capital Shielded'
@@ -335,7 +335,7 @@ export function AdminDashboard() {
         aadharNo: '',
         panNo: '',
         initialBalance: 200,
-        dailyGrowthRate: 3,
+        dailyGrowthRate: 1,
         status: 'ACTIVE',
         sendEmailToUser: true
       });
@@ -358,7 +358,7 @@ export function AdminDashboard() {
       panNo: user.panNo || '',
       password: '', // leave empty if not changing
       status: user.status || 'ACTIVE',
-      dailyGrowthRate: user.dailyGrowthRate ?? 3,
+      dailyGrowthRate: user.dailyGrowthRate ?? 1,
       overrideBalance: user.wallet?.currentBalance || user.initialBalance
     });
     setEditUserModalOpen(true);
@@ -556,6 +556,29 @@ export function AdminDashboard() {
     }
   }
 
+  async function handleAcceptKyc(sub) {
+    if (!window.confirm(`Accept and activate account for ${sub.name}? This will make them eligible for investing.`)) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem('tt_token');
+      const res = await fetch(`${API_BASE}/api/admin/kyc-submissions/${sub.id}/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ initialBalance: 200, dailyGrowthRate: 1 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to accept account');
+      alert(data.message || 'Account accepted successfully!');
+      loadAllData();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
   function handleApproveKycToNewUser(sub) {
     setNewUserForm({
       username: sub.name.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(Math.random() * 100),
@@ -568,7 +591,7 @@ export function AdminDashboard() {
       aadharNo: sub.aadhar,
       panNo: sub.pan,
       initialBalance: 200,
-      dailyGrowthRate: 3,
+      dailyGrowthRate: 1,
       status: 'ACTIVE',
       sendEmailToUser: true
     });
@@ -613,7 +636,7 @@ export function AdminDashboard() {
           </div>
           <div>
             <h1 style={{ fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
-              Trading Trends Super-Admin Portal
+              Nexora Trading Super-Admin Portal
             </h1>
             <p style={{ color: '#9ca3af', fontSize: '13px', marginTop: '4px' }}>
               Full Control Management: Onboarding, Wallet Compounding, Deposits, and Payout Approvals
@@ -633,7 +656,7 @@ export function AdminDashboard() {
             href={`${API_BASE}/api/download/apk`}
             target="_blank"
             rel="noopener noreferrer"
-            download="TradingTrends.apk"
+            download="NexoraTrading.apk"
             className="btn btn-secondary"
             style={{
               fontSize: '13px',
@@ -775,7 +798,7 @@ export function AdminDashboard() {
                       </td>
 
                       <td style={{ padding: '12px 10px', fontFamily: 'JetBrains Mono', color: '#00f2fe' }}>
-                        +{u.dailyGrowthRate ?? 3}%/day
+                        +{u.dailyGrowthRate ?? 1}%/day
                       </td>
 
                       <td style={{ padding: '12px 10px', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>
@@ -854,9 +877,9 @@ export function AdminDashboard() {
                 <div
                   key={sub.id}
                   style={{
-                    background: '#090d16',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '12px',
+                    background: 'rgba(30, 41, 59, 0.55)',
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '14px',
                     padding: '18px',
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -866,9 +889,16 @@ export function AdminDashboard() {
                   }}
                 >
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: '16px', color: '#ffffff' }}>{sub.name}</strong>
-                      <span className="badge badge-gold" style={{ fontSize: '10px' }}>Pending Provisioning</span>
+                      <span className={`badge ${sub.status === 'APPROVED' ? 'badge-emerald' : 'badge-gold'}`} style={{ fontSize: '10px' }}>
+                        {sub.status === 'APPROVED' ? 'Verified & Approved' : 'Pending Admin Acceptance'}
+                      </span>
+                      {sub.referralCode && (
+                        <span className="badge badge-purple" style={{ fontSize: '10px' }}>
+                          Partner Ref: {sub.referralCode} (5% Commission)
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '13px', color: '#58a6ff', marginBottom: '6px' }}>
                       {sub.email} • {sub.phone}
@@ -903,14 +933,29 @@ export function AdminDashboard() {
                     )}
                   </div>
 
-                  <div>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => handleApproveKycToNewUser(sub)}
-                      style={{ fontSize: '13px', padding: '10px 16px' }}
-                    >
-                      <UserPlus size={15} /> Create User Account
-                    </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {sub.status !== 'APPROVED' ? (
+                      <>
+                        <button
+                          className="btn btn-emerald"
+                          onClick={() => handleAcceptKyc(sub)}
+                          style={{ fontSize: '13px', padding: '10px 16px' }}
+                        >
+                          <CheckCircle size={15} /> Accept Account
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => handleApproveKycToNewUser(sub)}
+                          style={{ fontSize: '13px', padding: '10px 14px' }}
+                        >
+                          <UserPlus size={15} /> Manual Setup
+                        </button>
+                      </>
+                    ) : (
+                      <span style={{ color: '#00e676', fontWeight: 600, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle size={15} /> Eligible for Investing
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -952,12 +997,29 @@ export function AdminDashboard() {
                       <div style={{ fontSize: '11px', color: '#9ca3af' }}>{tx.userEmail}</div>
                     </td>
 
-                    <td style={{ padding: '12px 10px', fontWeight: 700, color: tx.type === 'DEPOSIT' ? '#00e676' : '#ff4757' }}>
-                      {tx.type}
+                    <td style={{ padding: '12px 10px', fontWeight: 700, color: tx.type === 'DEPOSIT' ? '#00e676' : tx.type === 'REFERRAL_BONUS' ? '#00f2fe' : '#ff4757' }}>
+                      {tx.type === 'REFERRAL_BONUS' ? '5% REFERRAL' : tx.type}
                     </td>
 
-                    <td style={{ padding: '12px 10px', fontFamily: 'JetBrains Mono', fontWeight: 800, color: '#ffd700' }}>
-                      ${tx.amount.toFixed(2)} USD
+                    <td style={{ padding: '12px 10px', fontFamily: 'JetBrains Mono' }}>
+                      <div style={{ fontWeight: 800, color: '#ffd700' }}>
+                        ${tx.amount.toFixed(2)} USD
+                      </div>
+                      {tx.type === 'WITHDRAWAL' && (
+                        <div style={{ fontSize: '11px', color: '#fb7185', marginTop: '2px' }}>
+                          Fee (8%): -${(tx.feeAmount ?? (tx.amount * 0.08)).toFixed(2)} | Net: ${(tx.netPayout ?? (tx.amount * 0.92)).toFixed(2)} USDT
+                        </div>
+                      )}
+                      {tx.type === 'DEPOSIT' && tx.bonusAmount && (
+                        <div style={{ fontSize: '11px', color: '#fbbf24', marginTop: '2px' }}>
+                          +10% Bonus: +${Number(tx.bonusAmount).toFixed(2)} USD
+                        </div>
+                      )}
+                      {tx.type === 'REFERRAL_BONUS' && (
+                        <div style={{ fontSize: '11px', color: '#00f2fe', marginTop: '2px' }}>
+                          5% Affiliate Commission
+                        </div>
+                      )}
                     </td>
 
                     <td style={{ padding: '12px 10px', fontFamily: 'JetBrains Mono', fontSize: '12px' }}>
@@ -966,9 +1028,8 @@ export function AdminDashboard() {
                     </td>
 
                     <td style={{ padding: '12px 10px' }}>
-                      <span className={`badge ${
-                        tx.status === 'APPROVED' ? 'badge-emerald' : tx.status === 'REJECTED' ? 'badge-rose' : 'badge-gold'
-                      }`}>
+                      <span className={`badge ${tx.status === 'APPROVED' ? 'badge-emerald' : tx.status === 'REJECTED' ? 'badge-rose' : 'badge-gold'
+                        }`}>
                         {tx.status}
                       </span>
                     </td>
@@ -1066,7 +1127,7 @@ export function AdminDashboard() {
               </label>
               <input
                 type="url"
-                placeholder="https://... or leave empty to serve local TradingTrends.apk"
+                placeholder="https://... or leave empty to serve local NexoraTrading.apk"
                 value={settings.apkDownloadUrl || ''}
                 onChange={e => setSettings({ ...settings, apkDownloadUrl: e.target.value })}
                 className="input-field"
@@ -1713,8 +1774,8 @@ export function AdminDashboard() {
                             border: isSelected
                               ? '1px solid #00f2fe'
                               : hasUnread
-                              ? '1px solid rgba(255, 0, 85, 0.5)'
-                              : '1px solid rgba(255, 255, 255, 0.06)',
+                                ? '1px solid rgba(255, 0, 85, 0.5)'
+                                : '1px solid rgba(255, 255, 255, 0.06)',
                             transition: 'all 0.2s',
                             boxShadow: isSelected ? '0 4px 16px rgba(0, 242, 254, 0.15)' : 'none'
                           }}
@@ -2064,13 +2125,13 @@ export function AdminDashboard() {
                                 background: isAdmin
                                   ? 'linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(79, 172, 254, 0.25))'
                                   : isBot
-                                  ? 'rgba(0, 230, 118, 0.12)'
-                                  : 'rgba(255, 255, 255, 0.05)',
+                                    ? 'rgba(0, 230, 118, 0.12)'
+                                    : 'rgba(255, 255, 255, 0.05)',
                                 border: isAdmin
                                   ? '1px solid rgba(0, 242, 254, 0.45)'
                                   : isBot
-                                  ? '1px solid rgba(0, 230, 118, 0.3)'
-                                  : '1px solid rgba(255, 255, 255, 0.12)',
+                                    ? '1px solid rgba(0, 230, 118, 0.3)'
+                                    : '1px solid rgba(255, 255, 255, 0.12)',
                                 color: '#fff',
                                 fontSize: '13px',
                                 lineHeight: 1.5,
@@ -2092,7 +2153,7 @@ export function AdminDashboard() {
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {[
-                          'Deposit confirmed! Your account balance has been updated and 3% compounding is active.',
+                          'Deposit confirmed! Your account balance has been updated and 1% compounding is active.',
                           'Please provide your blockchain transaction hash (TxID) so our compliance desk can verify the transfer.',
                           'Your withdrawal request has been approved and settled successfully to your wallet.',
                           'Our algorithmic growth bot runs Monday through Friday with capital protection.'
@@ -2305,9 +2366,9 @@ export function AdminDashboard() {
 
               {/* Financial Settings Section */}
               <div style={{
-                background: '#090d16',
-                border: '1px solid rgba(0, 242, 254, 0.25)',
-                borderRadius: '12px',
+                background: 'rgba(30, 41, 59, 0.55)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '14px',
                 padding: '16px',
                 marginBottom: '16px'
               }}>
@@ -2345,7 +2406,7 @@ export function AdminDashboard() {
                       style={{ fontFamily: 'JetBrains Mono', fontSize: '15px', color: '#00e676', fontWeight: 700 }}
                       required
                     />
-                    <span style={{ fontSize: '11px', color: '#9ca3af' }}>Default: +3% / weekday</span>
+                    <span style={{ fontSize: '11px', color: '#9ca3af' }}>Default: +1% / weekday</span>
                   </div>
                 </div>
               </div>
@@ -2392,9 +2453,9 @@ export function AdminDashboard() {
             <form onSubmit={handleSaveEditUser}>
               {/* Direct Balance Override Box */}
               <div style={{
-                background: '#090d16',
-                border: '1px solid #ffb703',
-                borderRadius: '12px',
+                background: 'rgba(30, 41, 59, 0.55)',
+                border: '1px solid rgba(251, 191, 36, 0.5)',
+                borderRadius: '14px',
                 padding: '16px',
                 marginBottom: '16px'
               }}>
@@ -2410,7 +2471,7 @@ export function AdminDashboard() {
                   style={{ fontSize: '18px', fontWeight: 800, fontFamily: 'JetBrains Mono', color: '#ffd700' }}
                 />
                 <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px' }}>
-                  Modifying this instantly updates what the user sees in their wallet. The Mon–Fri 3%/day growth will continue smoothly from this updated amount.
+                  Modifying this instantly updates what the user sees in their wallet. The Mon–Fri 1%/day growth will continue smoothly from this updated amount.
                 </p>
               </div>
 
@@ -2434,7 +2495,7 @@ export function AdminDashboard() {
                     value={editUserForm.status}
                     onChange={e => setEditUserForm({ ...editUserForm, status: e.target.value })}
                     className="input-field"
-                    style={{ background: '#080c14' }}
+                    style={{ background: 'rgba(15, 23, 42, 0.85)' }}
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="SUSPENDED">SUSPENDED</option>
@@ -2593,9 +2654,9 @@ export function AdminDashboard() {
             <form onSubmit={handleConfirmApproveDeposit}>
               {/* User & Request Info Banner */}
               <div style={{
-                background: '#090d16',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
+                background: 'rgba(30, 41, 59, 0.55)',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                borderRadius: '14px',
                 padding: '14px',
                 marginBottom: '16px'
               }}>
@@ -2625,13 +2686,13 @@ export function AdminDashboard() {
                 gap: '10px',
                 marginBottom: '16px'
               }}>
-                <div style={{ background: '#0e1422', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ background: 'rgba(30, 41, 59, 0.45)', border: '1px solid rgba(148, 163, 184, 0.15)', borderRadius: '10px', padding: '12px' }}>
                   <div style={{ fontSize: '11px', color: '#9ca3af' }}>Recent Deposited Capital</div>
                   <div style={{ fontSize: '16px', fontWeight: 700, color: '#ffd700', fontFamily: 'JetBrains Mono' }}>
                     ${depositToApprove.initialBal.toFixed(2)} USD
                   </div>
                 </div>
-                <div style={{ background: '#0e1422', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ background: 'rgba(30, 41, 59, 0.45)', border: '1px solid rgba(148, 163, 184, 0.15)', borderRadius: '10px', padding: '12px' }}>
                   <div style={{ fontSize: '11px', color: '#9ca3af' }}>Current Active Balance (With Yield)</div>
                   <div style={{ fontSize: '16px', fontWeight: 700, color: '#00e676', fontFamily: 'JetBrains Mono' }}>
                     ${depositToApprove.currentBal.toFixed(2)} USD
@@ -2652,8 +2713,8 @@ export function AdminDashboard() {
                       setDepositForm({ ...depositForm, newBalance: newBal, mode: 'INITIAL' });
                     }}
                     style={{
-                      background: depositForm.mode === 'INITIAL' ? 'rgba(0, 242, 254, 0.15)' : '#090d16',
-                      border: depositForm.mode === 'INITIAL' ? '1px solid #00f2fe' : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: depositForm.mode === 'INITIAL' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(30, 41, 59, 0.5)',
+                      border: depositForm.mode === 'INITIAL' ? '1px solid #38bdf8' : '1px solid rgba(148, 163, 184, 0.18)',
                       borderRadius: '10px',
                       padding: '10px',
                       textAlign: 'left',
@@ -2661,7 +2722,7 @@ export function AdminDashboard() {
                     }}
                   >
                     <div style={{ fontSize: '11px', color: '#9ca3af' }}>Add to Recent Deposited Capital</div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#00f2fe', fontFamily: 'JetBrains Mono' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#38bdf8', fontFamily: 'JetBrains Mono' }}>
                       ${(depositToApprove.initialBal + depositToApprove.depositAmt).toFixed(2)} USD
                     </div>
                   </button>
@@ -2673,8 +2734,8 @@ export function AdminDashboard() {
                       setDepositForm({ ...depositForm, newBalance: newBal, mode: 'CURRENT' });
                     }}
                     style={{
-                      background: depositForm.mode === 'CURRENT' ? 'rgba(0, 230, 118, 0.15)' : '#090d16',
-                      border: depositForm.mode === 'CURRENT' ? '1px solid #00e676' : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: depositForm.mode === 'CURRENT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30, 41, 59, 0.5)',
+                      border: depositForm.mode === 'CURRENT' ? '1px solid #34d399' : '1px solid rgba(148, 163, 184, 0.18)',
                       borderRadius: '10px',
                       padding: '10px',
                       textAlign: 'left',
@@ -2682,7 +2743,7 @@ export function AdminDashboard() {
                     }}
                   >
                     <div style={{ fontSize: '11px', color: '#9ca3af' }}>Add to Current Balance</div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#00e676', fontFamily: 'JetBrains Mono' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#34d399', fontFamily: 'JetBrains Mono' }}>
                       ${(depositToApprove.currentBal + depositToApprove.depositAmt).toFixed(2)} USD
                     </div>
                   </button>
@@ -2691,9 +2752,9 @@ export function AdminDashboard() {
 
               {/* Editable New Balance Target Box */}
               <div style={{
-                background: '#070a12',
-                border: '1px solid #00e676',
-                borderRadius: '12px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(52, 211, 153, 0.4)',
+                borderRadius: '14px',
                 padding: '14px',
                 marginBottom: '16px'
               }}>
@@ -2710,7 +2771,7 @@ export function AdminDashboard() {
                   required
                 />
                 <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px' }}>
-                  This amount will immediately become the user's active wallet balance. Daily 3% compounding will smoothly proceed from this new amount.
+                  This amount will immediately become the user's active wallet balance. Daily 1% compounding will smoothly proceed from this new amount.
                 </p>
               </div>
 

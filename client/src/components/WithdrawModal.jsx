@@ -17,6 +17,9 @@ export function WithdrawModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const currentBalance = wallet?.currentBalance || 0;
+  const parsedAmount = Number(amount) || 0;
+  const platformFee = Math.round(parsedAmount * 0.08 * 100) / 100;
+  const netPayout = Math.max(0, Math.round((parsedAmount - platformFee) * 100) / 100);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -149,8 +152,19 @@ export function WithdrawModal({ isOpen, onClose }) {
               textAlign: 'left',
               marginBottom: '20px'
             }}>
-              <div style={{ color: '#9ca3af' }}>Requested Amount: <strong style={{ color: '#ffd700' }}>${amount} USD</strong></div>
-              <div style={{ color: '#9ca3af', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: '#9ca3af' }}>Gross Requested:</span>
+                <strong style={{ color: '#ffffff' }}>${parsedAmount.toFixed(2)} USD</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: '#9ca3af' }}>Platform Processing Fee (8%):</span>
+                <strong style={{ color: '#ff4757' }}>-${platformFee.toFixed(2)} USD</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <span style={{ color: '#00e676', fontWeight: 700 }}>Net Dispatched:</span>
+                <strong style={{ color: '#00e676', fontSize: '15px' }}>${netPayout.toFixed(2)} USDT</strong>
+              </div>
+              <div style={{ color: '#9ca3af' }}>
                 Destination: <strong style={{ color: '#00f2fe' }}>{destinationType === 'CRYPTO' ? cryptoAddress : `Binance ID: ${binanceId}`}</strong>
               </div>
             </div>
@@ -231,6 +245,33 @@ export function WithdrawModal({ isOpen, onClose }) {
                 className="input-field"
                 required
               />
+
+              {/* Dynamic 8% Platform Fee Breakdown */}
+              {parsedAmount > 0 && (
+                <div style={{
+                  marginTop: '10px',
+                  padding: '12px 14px',
+                  background: 'rgba(15, 23, 42, 0.75)',
+                  border: '1px solid rgba(148, 163, 240, 0.22)',
+                  borderRadius: '10px',
+                  fontSize: '12px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <span style={{ color: '#94a3b8' }}>Requested Capital:</span>
+                    <strong style={{ color: '#ffffff' }}>${parsedAmount.toFixed(2)} USD</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <span style={{ color: '#94a3b8' }}>Platform Fee (8%):</span>
+                    <strong style={{ color: '#fb7185' }}>-${platformFee.toFixed(2)} USD</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <span style={{ color: '#00e676', fontWeight: 700 }}>Estimated Net Payout:</span>
+                    <strong style={{ color: '#00e676', fontSize: '14px', fontFamily: 'JetBrains Mono' }}>
+                      ${netPayout.toFixed(2)} USDT
+                    </strong>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Destination Toggle */}

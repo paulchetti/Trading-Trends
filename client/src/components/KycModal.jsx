@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  X,
+  ShieldCheck,
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Lock,
+  Eye,
+  EyeOff,
+  MessageSquare,
+  Camera,
+  Clock,
+  Sparkles
+} from 'lucide-react';
 import { API_BASE } from '../apiConfig.js';
 
 export function KycModal({ isOpen, onClose }) {
@@ -10,15 +25,34 @@ export function KycModal({ isOpen, onClose }) {
     dob: '',
     address: '',
     aadhar: '',
-    pan: ''
+    password: '',
+    confirmPassword: '',
+    referralCode: ''
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [aadharFrontFile, setAadharFrontFile] = useState(null);
   const [aadharBackFile, setAadharBackFile] = useState(null);
-  const [panFile, setPanFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [submissionResult, setSubmissionResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refUrl = urlParams.get('ref');
+        const storedRef = refUrl || localStorage.getItem('nexora_ref');
+        if (storedRef) {
+          setFormData(prev => ({ ...prev, referralCode: storedRef.trim().toUpperCase() }));
+        }
+      } catch (e) {
+        // Ignore URL parsing errors
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -29,10 +63,20 @@ export function KycModal({ isOpen, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
+    setSubmissionResult(null);
 
-    if (!formData.name || !formData.email || !formData.phone || !formData.dob || !formData.address || !formData.aadhar || !formData.pan) {
-      setErrorMessage('Please fill in all 7 required identity details.');
+    if (!formData.name || !formData.email || !formData.phone || !formData.dob || !formData.address || !formData.aadhar) {
+      setErrorMessage('Please fill in all identity details.');
+      return;
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      setErrorMessage('Please create a secure password of at least 6 characters.');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage('Passwords do not match. Please verify your password.');
       return;
     }
 
@@ -46,11 +90,6 @@ export function KycModal({ isOpen, onClose }) {
       return;
     }
 
-    if (!panFile) {
-      setErrorMessage('Please attach your PAN Card document (Image/PDF).');
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -61,10 +100,11 @@ export function KycModal({ isOpen, onClose }) {
       data.append('dob', formData.dob);
       data.append('address', formData.address);
       data.append('aadhar', formData.aadhar);
-      data.append('pan', formData.pan);
+      data.append('pan', 'N/A');
+      data.append('password', formData.password);
+      data.append('referralCode', formData.referralCode ? formData.referralCode.trim() : '');
       data.append('aadharFrontFile', aadharFrontFile);
       data.append('aadharBackFile', aadharBackFile);
-      data.append('panFile', panFile);
 
       const res = await fetch(`${API_BASE}/api/kyc/submit`, {
         method: 'POST',
@@ -76,12 +116,29 @@ export function KycModal({ isOpen, onClose }) {
         throw new Error(json.error || 'Failed to submit KYC application');
       }
 
-      setSuccessMessage(json.message || 'KYC application submitted successfully! Check your email for login credentials.');
+      setSubmissionResult({
+        submissionId: json.submissionId || 'KYC-' + Date.now(),
+        name: formData.name,
+        email: formData.email,
+        timestamp: new Date().toLocaleString()
+      });
     } catch (err) {
       setErrorMessage(err.message);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleOpenSupport() {
+    onClose();
+    // Dispatch custom event to auto-open support chat with prefilled context
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('open-support-chat', {
+        detail: {
+          message: `Hello Customer Support, I have just created my account (${formData.name}, ${formData.email}) and submitted my KYC documents for verification. Here is my confirmation screenshot.`
+        }
+      }));
+    }, 150);
   }
 
   return (
@@ -91,19 +148,20 @@ export function KycModal({ isOpen, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '36px',
-              height: '36px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
-              background: 'rgba(0, 242, 254, 0.1)',
+              background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(139, 92, 246, 0.2))',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              border: '1px solid rgba(0, 242, 254, 0.35)'
             }}>
               <ShieldCheck size={20} color="#00f2fe" />
             </div>
             <div>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Open Account & KYC Verification</h3>
-              <p style={{ fontSize: '12px', color: '#9ca3af' }}>Submit identity documents for institutional credential provisioning</p>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>Create Account & KYC Verification</h3>
+              <p style={{ fontSize: '12px', color: '#94a3b8' }}>Set your password and submit compliance identity documents</p>
             </div>
           </div>
           <button
@@ -111,7 +169,7 @@ export function KycModal({ isOpen, onClose }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#9ca3af',
+              color: '#94a3b8',
               cursor: 'pointer',
               padding: '6px'
             }}
@@ -120,49 +178,128 @@ export function KycModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {successMessage ? (
-          <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+        {/* SUCCESS / VERIFICATION SCREEN */}
+        {submissionResult ? (
+          <div style={{ textAlign: 'center', padding: '10px 4px' }}>
+            {/* Pulsing Status Icon */}
             <div style={{
-              width: '64px',
-              height: '64px',
+              width: '68px',
+              height: '68px',
               borderRadius: '50%',
-              background: 'rgba(0, 230, 118, 0.15)',
-              border: '2px solid #00e676',
+              background: 'radial-gradient(circle, rgba(0, 242, 254, 0.2) 0%, rgba(16, 185, 129, 0.25) 100%)',
+              border: '2px solid #00f2fe',
+              boxShadow: '0 0 25px rgba(0, 242, 254, 0.4)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 20px'
+              margin: '0 auto 16px'
             }}>
-              <CheckCircle2 size={36} color="#00e676" />
+              <Clock size={34} color="#00f2fe" />
             </div>
-            <h4 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
-              Application Successfully Dispatched!
-            </h4>
-            <p style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '24px' }}>
-              {successMessage}
-            </p>
+
             <div style={{
-              background: '#131929',
-              padding: '16px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 14px',
+              borderRadius: '999px',
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1px solid rgba(251, 191, 36, 0.4)',
+              color: '#fbbf24',
+              fontSize: '12px',
+              fontWeight: 700,
+              marginBottom: '12px'
+            }}>
+              <Clock size={13} /> Account Created — Verification in Progress
+            </div>
+
+            <h4 style={{ fontSize: '22px', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
+              Account Sent for Verification!
+            </h4>
+            <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6', maxWidth: '520px', margin: '0 auto 20px' }}>
+              Your account has been registered with your custom password. It is now awaiting compliance desk review.
+            </p>
+
+            {/* Confirmation Card formatted for screenshotting */}
+            <div style={{
+              background: 'linear-gradient(145deg, rgba(20, 28, 64, 0.9) 0%, rgba(13, 18, 44, 0.95) 100%)',
+              padding: '18px 20px',
+              borderRadius: '14px',
+              border: '1px solid rgba(0, 242, 254, 0.35)',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+              textAlign: 'left',
+              marginBottom: '20px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '10px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+                  Account Registration Details
+                </span>
+                <span style={{ fontSize: '11px', color: '#00f2fe', fontFamily: 'JetBrains Mono', fontWeight: 700 }}>
+                  {submissionResult.submissionId}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Full Legal Name:</span>
+                  <strong style={{ color: '#ffffff' }}>{submissionResult.name}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Registered Email / Login ID:</span>
+                  <strong style={{ color: '#38bdf8' }}>{submissionResult.email}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Submission Timestamp:</span>
+                  <span style={{ color: '#cbd5e1', fontFamily: 'JetBrains Mono', fontSize: '12px' }}>{submissionResult.timestamp}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#94a3b8' }}>Compliance Status:</span>
+                  <span style={{ color: '#fbbf24', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    ● Pending Admin Acceptance
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Critical Next-Steps Instruction Box (Golden & Cyan Callout) */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
+              border: '1px solid rgba(251, 191, 36, 0.45)',
               borderRadius: '12px',
-              border: '1px solid rgba(0, 242, 254, 0.2)',
-              fontSize: '13px',
-              color: '#d1d5db',
+              padding: '16px',
               textAlign: 'left',
               marginBottom: '24px'
             }}>
-              <div style={{ fontWeight: 600, color: '#00f2fe', marginBottom: '4px' }}>What happens next?</div>
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.6' }}>
-                <li>Our compliance desk reviews your Aadhaar & PAN submissions.</li>
-                <li>An administrator issues your verified credentials and guides you to fund the minimum initial investment ($200+ USD, any amount).</li>
-                <li>Once your initial deposit is confirmed, your 3% daily compounding growth activates every Monday to Friday.</li>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fbbf24', fontWeight: 700, fontSize: '13px', marginBottom: '8px' }}>
+                <Camera size={16} /> Important: Take a Screenshot & Contact Customer Support
+              </div>
+              <ul style={{ paddingLeft: '18px', fontSize: '12px', color: '#e2e8f0', lineHeight: '1.65' }}>
+                <li><strong>When admin accepts your account, you will be eligible for investing</strong> and earning 1% daily compounding growth.</li>
+                <li>Please <strong>take a screenshot of this confirmation screen now</strong> as proof of your registration.</li>
+                <li><strong>Contact Customer Support</strong> using the button below to notify them that you have created your account and share your screenshot for rapid approval.</li>
               </ul>
             </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} onClick={onClose}>
-              Got It
-            </button>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '13px', fontSize: '14px', gap: '8px' }}
+                onClick={handleOpenSupport}
+              >
+                <MessageSquare size={17} /> Contact Customer Support with Screenshot
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ width: '100%', padding: '11px', fontSize: '13px' }}
+                onClick={onClose}
+              >
+                Close Window
+              </button>
+            </div>
           </div>
         ) : (
+          /* REGISTRATION & KYC FORM */
           <form onSubmit={handleSubmit}>
             {errorMessage && (
               <div style={{
@@ -182,9 +319,27 @@ export function KycModal({ isOpen, onClose }) {
               </div>
             )}
 
+            {/* 10% Investment Bonus Callout */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%)',
+              border: '1px solid rgba(251, 191, 36, 0.35)',
+              borderRadius: '12px',
+              padding: '12px 14px',
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '18px' }}>🎁</span>
+              <div style={{ fontSize: '12px', color: '#e2e8f0', lineHeight: '1.45' }}>
+                <strong style={{ color: '#fbbf24' }}>+10% Investment Bonus Activated:</strong> You will automatically receive a 10% bonus added to your invested balance upon admin acceptance!
+              </div>
+            </div>
+
+            {/* 1 & 2: Name and Email */}
             <div className="responsive-form-grid">
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
                   1. Full Legal Name *
                 </label>
                 <input
@@ -199,8 +354,8 @@ export function KycModal({ isOpen, onClose }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '6px' }}>
-                  2. Registered Email Address *
+                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
+                  2. Registered Email Address (Login ID) *
                 </label>
                 <input
                   type="email"
@@ -214,9 +369,99 @@ export function KycModal({ isOpen, onClose }) {
               </div>
             </div>
 
+            {/* 3 & 4: Password Creation & Verification */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '1px solid rgba(148, 163, 240, 0.3)',
+              marginBottom: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                <Lock size={15} color="#00f2fe" />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                  Create Account Login Password
+                </span>
+                <span style={{ fontSize: '11px', color: '#00f2fe', marginLeft: 'auto' }}>Direct Account Creation</span>
+              </div>
+
+              <div className="responsive-form-grid" style={{ marginBottom: 0 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                    Create Password * (Min 6 chars)
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      className="input-field"
+                      style={{ paddingRight: '36px' }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '2px'
+                      }}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                    Verify Password (Confirm) *
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      className="input-field"
+                      style={{ paddingRight: '36px' }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '2px'
+                      }}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5 & 6: Phone and DOB */}
             <div className="responsive-form-grid">
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
                   3. Phone Number *
                 </label>
                 <input
@@ -231,7 +476,7 @@ export function KycModal({ isOpen, onClose }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
                   4. Date of Birth (DOB) *
                 </label>
                 <input
@@ -245,8 +490,9 @@ export function KycModal({ isOpen, onClose }) {
               </div>
             </div>
 
+            {/* 7: Address */}
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
                 5. Permanent Residential Address *
               </label>
               <textarea
@@ -260,12 +506,12 @@ export function KycModal({ isOpen, onClose }) {
               />
             </div>
 
-            {/* Aadhaar Section */}
+            {/* 8: Aadhaar Section */}
             <div style={{
-              background: '#090d16',
+              background: 'linear-gradient(145deg, rgba(18, 25, 60, 0.7) 0%, rgba(12, 17, 45, 0.8) 100%)',
               padding: '14px',
               borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(148, 163, 240, 0.22)',
               marginBottom: '14px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -287,19 +533,19 @@ export function KycModal({ isOpen, onClose }) {
 
               {/* Box 1: Front Side */}
               <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
                   <span>Front Side (Photo, Name, DOB & Aadhaar No.)</span>
                   {aadharFrontFile && <span style={{ color: '#00e676', fontWeight: 600 }}>✓ Attached</span>}
                 </div>
                 <div style={{
-                  border: '1px dashed rgba(255, 255, 255, 0.15)',
+                  border: '1px dashed rgba(148, 163, 240, 0.3)',
                   borderRadius: '8px',
                   padding: '10px 14px',
                   background: 'rgba(255, 255, 255, 0.02)'
                 }} className="responsive-upload-box">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <FileText size={18} color="#00f2fe" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', color: aadharFrontFile ? '#00e676' : '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '13px', color: aadharFrontFile ? '#00e676' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {aadharFrontFile ? aadharFrontFile.name : 'No file chosen (Front Side)'}
                     </span>
                   </div>
@@ -328,19 +574,19 @@ export function KycModal({ isOpen, onClose }) {
 
               {/* Box 2: Back Side */}
               <div>
-                <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
                   <span>Back Side (Permanent Address & QR Code)</span>
                   {aadharBackFile && <span style={{ color: '#00e676', fontWeight: 600 }}>✓ Attached</span>}
                 </div>
                 <div style={{
-                  border: '1px dashed rgba(255, 255, 255, 0.15)',
+                  border: '1px dashed rgba(148, 163, 240, 0.3)',
                   borderRadius: '8px',
                   padding: '10px 14px',
                   background: 'rgba(255, 255, 255, 0.02)'
                 }} className="responsive-upload-box">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
                     <FileText size={18} color="#00f2fe" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', color: aadharBackFile ? '#00e676' : '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '13px', color: aadharBackFile ? '#00e676' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {aadharBackFile ? aadharBackFile.name : 'No file chosen (Back Side)'}
                     </span>
                   </div>
@@ -368,68 +614,37 @@ export function KycModal({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* PAN Card Section */}
+            {/* 7: Referral Code (Optional) */}
             <div style={{
-              background: '#090d16',
+              background: 'rgba(18, 25, 60, 0.5)',
               padding: '14px',
               borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              marginBottom: '20px'
+              border: '1px solid rgba(148, 163, 240, 0.22)',
+              marginBottom: '16px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff' }}>
-                  7. PAN Card Number & Document *
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#ffffff', fontWeight: 600 }}>
+                  7. Referral Partner Code (Optional)
                 </label>
-                <span style={{ fontSize: '11px', color: '#00e676' }}>Official PAN Card</span>
+                <span style={{ fontSize: '11px', color: '#00f2fe' }}>5% Partner Program</span>
               </div>
               <input
                 type="text"
-                name="pan"
-                value={formData.pan}
+                name="referralCode"
+                value={formData.referralCode}
                 onChange={handleChange}
-                placeholder="10-character PAN (e.g. ABCDE1234F)"
+                placeholder="e.g. NX-RAHUL102"
                 className="input-field"
-                style={{ marginBottom: '10px' }}
-                required
+                style={{ fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}
               />
-              <div style={{
-                border: '1px dashed rgba(255, 255, 255, 0.15)',
-                borderRadius: '8px',
-                padding: '10px 14px',
-                background: 'rgba(255, 255, 255, 0.02)'
-              }} className="responsive-upload-box">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
-                  <FileText size={18} color="#00e676" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '13px', color: panFile ? '#00e676' : '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {panFile ? panFile.name : 'No PAN file chosen'}
-                  </span>
-                </div>
-                <label style={{
-                  padding: '8px 12px',
-                  background: 'rgba(0, 230, 118, 0.15)',
-                  color: '#00e676',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  flexShrink: 0,
-                  textAlign: 'center'
-                }}>
-                  <Upload size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-                  Browse File
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={e => setPanFile(e.target.files[0] || null)}
-                  />
-                </label>
-              </div>
+              <span style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                If you were invited by a friend, enter their referral code to link your account under their affiliate rewards.
+              </span>
             </div>
 
             {/* Disclaimer */}
-            <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '18px', lineHeight: '1.5' }}>
-              By submitting this form, your personal data and attached verification documents are securely dispatched directly to the Trading Trends administrative desk via email. Login credentials will be issued exclusively upon administrative review.
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '18px', lineHeight: '1.5' }}>
+              By submitting this form, your account is immediately provisioned and your verification documents are dispatched to compliance administration. When admin accepts your account, you will be eligible for investing.
             </p>
 
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -450,11 +665,11 @@ export function KycModal({ isOpen, onClose }) {
               >
                 {submitting ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Dispatching Documents...
+                    <Loader2 size={16} className="animate-spin" /> Provisioning Account...
                   </>
                 ) : (
                   <>
-                    <ShieldCheck size={16} /> Submit KYC Application
+                    <ShieldCheck size={16} /> Create Account & Submit KYC
                   </>
                 )}
               </button>

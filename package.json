@@ -1,8 +1,8 @@
 {
-  "name": "trading-trends",
+  "name": "nexora-trading",
   "version": "1.0.0",
   "private": true,
-  "description": "Trading Trends algorithmic trading and platform",
+  "description": "Nexora Trading algorithmic trading and platform",
   "scripts": {
     "build": "npm --prefix client run build",
     "client": "npm --prefix client run dev",

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { NexoraLogo } from './NexoraLogo';
 import {
   TrendingUp,
   ShieldCheck,
@@ -35,8 +36,9 @@ export function Navbar({ onOpenKyc, onOpenLogin }) {
       zIndex: 1000,
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
-      backgroundColor: 'rgba(7, 9, 14, 0.9)',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+      backgroundColor: 'rgba(12, 17, 43, 0.88)',
+      borderBottom: '1px solid rgba(148, 163, 240, 0.16)',
+      boxShadow: '0 4px 25px rgba(0, 0, 0, 0.4)'
     }}>
       {/* Impersonation Banner if Admin is viewing as user */}
       {impersonatedUser && (
@@ -94,49 +96,11 @@ export function Navbar({ onOpenKyc, onOpenLogin }) {
             else handleNav('LANDING');
           }}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
             cursor: 'pointer',
             userSelect: 'none'
           }}
         >
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)',
-            flexShrink: 0
-          }}>
-            <TrendingUp size={20} color="#07090e" strokeWidth={2.8} />
-          </div>
-          <div>
-            <div style={{
-              fontSize: '18px',
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              fontFamily: 'Outfit, sans-serif',
-              background: 'linear-gradient(90deg, #ffffff, #d1d5db)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1.2
-            }}>
-              TRADING TRENDS
-            </div>
-            <div style={{
-              fontSize: '9px',
-              letterSpacing: '0.12em',
-              color: '#00f2fe',
-              fontWeight: 600,
-              textTransform: 'uppercase'
-            }}>
-              Algorithmic Growth Desk
-            </div>
-          </div>
+          <NexoraLogo size="md" />
         </div>
 
         {/* Desktop Live Engine Status Indicator */}
@@ -159,7 +123,7 @@ export function Navbar({ onOpenKyc, onOpenLogin }) {
           }}></span>
           <span style={{ color: '#9ca3af' }}>Engine:</span>
           <span style={{ color: '#ffffff', fontWeight: 600 }}>
-            {isWeekend ? 'Weekend Paused (Market Closed)' : 'Mon-Fri Algorithmic Yield (+3%/day)'}
+            {isWeekend ? 'Weekend Paused (Market Closed)' : 'Mon-Fri Algorithmic Yield (+1%/day)'}
           </span>
         </div>
 
@@ -381,7 +345,7 @@ export function Navbar({ onOpenKyc, onOpenLogin }) {
                   Engine Protocol:
                 </span>
                 <span style={{ fontWeight: 600, color: isWeekend ? '#ffb703' : '#00e676' }}>
-                  {isWeekend ? 'Weekend Paused' : 'Mon-Fri Yield Active (+3%)'}
+                  {isWeekend ? 'Weekend Paused' : 'Mon-Fri Yield Active (+1%)'}
                 </span>
               </div>
 
@@ -427,7 +391,7 @@ export function Navbar({ onOpenKyc, onOpenLogin }) {
                 href={`${API_BASE}/api/download/apk`}
                 target="_blank"
                 rel="noopener noreferrer"
-                download="TradingTrends.apk"
+                download="NexoraTrading.apk"
                 className="btn btn-secondary"
                 style={{
                   width: '100%',
@@ -489,7 +453,7 @@ export function Navbar({ onOpenKyc, onOpenLogin }) {
                 href={`${API_BASE}/api/download/apk`}
                 target="_blank"
                 rel="noopener noreferrer"
-                download="TradingTrends.apk"
+                download="NexoraTrading.apk"
                 className="btn btn-secondary"
                 style={{
                   width: '100%',

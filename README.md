@@ -1,6 +1,6 @@
-# Trading Trends - Institutional Algorithmic Platform
+# Nexora Trading - Institutional Algorithmic Platform
 
-**Trading Trends** is an algorithmic trading, managed capital, and investment management web platform. It features an institutional visitor landing page with strict KYC identity verification, automated email document dispatching, an advanced Super-Admin control portal, and an authenticated user trading dashboard with automated Monday-through-Friday 3% daily compounding growth.
+**Nexora Trading** is an algorithmic trading, managed capital, and investment management web platform. It features an institutional visitor landing page with strict KYC identity verification, automated email document dispatching, an advanced Super-Admin control portal, and an authenticated user trading dashboard with automated Monday-through-Friday 1% daily compounding growth.
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### 1. Visitor Landing Page
 - Institutional dark theme with vibrant cyan (`#00f2fe`) and emerald (`#00e676`) accents.
-- Educational onboarding workflow explaining the **$200+ USD minimum recent deposit (no upper limit)** required to activate daily 3% compounding gains.
+- Educational onboarding workflow explaining the **$200+ USD minimum recent deposit (no upper limit)** required to activate daily 1% compounding gains.
 - Live market ticker and quantitative performance stats.
 
 ### 2. KYC Verification & Email Dispatch
@@ -28,10 +28,10 @@
 
 ### 4. User Trading Dashboard
 - Verified personal profile (Name, Email, Phone, DOB, Address, Aadhaar, PAN).
-- **Automated Monday–Friday Growth Engine**: Automatically credits **+3% compounding growth daily** every Monday through Friday, cleanly pausing over Saturdays and Sundays.
+- **Automated Monday–Friday Growth Engine**: Automatically credits **+1% compounding growth daily** every Monday through Friday, cleanly pausing over Saturdays and Sundays.
 - **Deposit Modal**: USDT TRC-20 address, QR code, and admin custom note.
 - **Withdrawal Modal**: Payout to Crypto Address or Binance ID with mandatory network advisory note.
-- **Trading Trends Alpha-V Bot Feed**: Real-time algorithmic trade ledger.
+- **Nexora Trading Alpha-V Bot Feed**: Real-time algorithmic trade ledger.
 - **TradingView Terminal**: Live interactive candlestick chart.
 
 ---
@@ -114,4 +114,4 @@ You can deploy the platform 100% free with automated SSL domains:
 ---
 
 ## License
-Proprietary & Confidential - Trading Trends Institutional Technologies.
+Proprietary & Confidential - Nexora Trading Institutional Technologies.

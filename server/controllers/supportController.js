@@ -64,7 +64,7 @@ export function sendUserMessage(req, res) {
       botGreeting = addSupportMessage({
         userId,
         userName: 'Customer Support',
-        userEmail: 'support@tradingtrends.com',
+        userEmail: 'support@nexoratrading.com',
         sender: 'BOT',
         text: `Hello ${userName}! Your message has been received by Customer Support. A support representative will reply to you right here shortly.`
       });
@@ -168,7 +168,7 @@ export function sendAdminReply(req, res) {
     const reply = addSupportMessage({
       userId,
       userName: 'Customer Support',
-      userEmail: 'support@tradingtrends.com',
+      userEmail: 'support@nexoratrading.com',
       sender: 'ADMIN',
       text: text.trim()
     });

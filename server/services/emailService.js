@@ -21,7 +21,7 @@ function createTransporter() {
 
 export async function sendKycSubmissionEmail({ kycData, files }) {
   const settings = getSettings();
-  const recipient = process.env.ADMIN_EMAIL || settings.adminEmail || 'admin@tradingtrends.com';
+  const recipient = process.env.ADMIN_EMAIL || settings.adminEmail || 'admin@nexoratrading.com';
   const transporter = createTransporter();
 
   const attachments = (files || []).map(file => ({
@@ -33,7 +33,7 @@ export async function sendKycSubmissionEmail({ kycData, files }) {
   const html = `
     <div style="font-family: Arial, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 24px; border-radius: 8px;">
       <h2 style="color: #00f2fe; border-bottom: 2px solid #00f2fe; padding-bottom: 8px;">New KYC Verification Application</h2>
-      <p style="font-size: 14px; color: #8b949e;">A new user has submitted their KYC documents to open an account on <strong>Trading Trends</strong>.</p>
+      <p style="font-size: 14px; color: #8b949e;">A new user has submitted their KYC documents to open an account on <strong>Nexora Trading</strong>.</p>
       
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
         <tr style="border-bottom: 1px solid #30363d;">
@@ -70,7 +70,7 @@ export async function sendKycSubmissionEmail({ kycData, files }) {
         <h4 style="margin: 0 0 8px 0; color: #ffffff;">Admin Action Required:</h4>
         <p style="margin: 0; font-size: 13px; color: #8b949e;">Review the attached identity documents (Aadhaar & PAN). If verified, open your Admin Portal to generate login credentials and set the user's initial wallet balance ($200+ USD, any amount).</p>
       </div>
-      <p style="margin-top: 20px; font-size: 12px; color: #6e7681;">Trading Trends Institutional Platform Automated Dispatch</p>
+      <p style="margin-top: 20px; font-size: 12px; color: #6e7681;">Nexora Trading Institutional Platform Automated Dispatch</p>
     </div>
   `;
 
@@ -85,7 +85,7 @@ export async function sendKycSubmissionEmail({ kycData, files }) {
   if (transporter) {
     try {
       await transporter.sendMail({
-        from: settings.smtpSender || '"Trading Trends" <no-reply@tradingtrends.com>',
+        from: settings.smtpSender || '"Nexora Trading" <no-reply@nexoratrading.com>',
         to: recipient,
         subject,
         html,
@@ -105,21 +105,21 @@ export async function sendCredentialsEmail({ toEmail, username, password, fullNa
   const settings = getSettings();
   const transporter = createTransporter();
 
-  const subject = `Welcome to Trading Trends - Your Login Credentials`;
+  const subject = `Welcome to Nexora Trading - Your Login Credentials`;
   const html = `
     <div style="font-family: Arial, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 24px; border-radius: 8px;">
       <h2 style="color: #00e676;">Account Approved & Credentials Generated</h2>
       <p>Hello <strong>${fullName}</strong>,</p>
-      <p>Your KYC identity documents have been verified by the Trading Trends risk desk. Your trading account is now live!</p>
+      <p>Your KYC identity documents have been verified by the Nexora Trading risk desk. Your trading account is now live!</p>
       
       <div style="background-color: #161b22; padding: 18px; border-radius: 6px; border: 1px solid #30363d; margin: 16px 0;">
         <p style="margin: 4px 0;"><strong>Username:</strong> <code style="color: #58a6ff; font-size: 15px;">${username}</code></p>
         <p style="margin: 4px 0;"><strong>Temporary Password:</strong> <code style="color: #00e676; font-size: 15px;">${password}</code></p>
         <p style="margin: 4px 0;"><strong>Recent Deposited Capital:</strong> <span style="color: #ffd700; font-weight: bold;">$${initialBalance} USD</span></p>
-        <p style="margin: 4px 0;"><strong>Daily Algorithmic Yield:</strong> <span style="color: #00e676;">+3% compounding growth / weekday (Mon-Fri)</span></p>
+        <p style="margin: 4px 0;"><strong>Daily Algorithmic Yield:</strong> <span style="color: #00e676;">+1% compounding growth / weekday (Mon-Fri)</span></p>
       </div>
 
-      <p style="font-size: 13px; color: #8b949e;">Your initial investment deposit ($200+ USD) has been verified. You can now login at Trading Trends to monitor your daily compounding and manage withdrawals.</p>
+      <p style="font-size: 13px; color: #8b949e;">Your initial investment deposit ($200+ USD) has been verified. You can now login at Nexora Trading to monitor your daily compounding and manage withdrawals.</p>
     </div>
   `;
 
@@ -128,7 +128,7 @@ export async function sendCredentialsEmail({ toEmail, username, password, fullNa
   if (transporter) {
     try {
       await transporter.sendMail({
-        from: settings.smtpSender || '"Trading Trends" <no-reply@tradingtrends.com>',
+        from: settings.smtpSender || '"Nexora Trading" <no-reply@nexoratrading.com>',
         to: toEmail,
         subject,
         html
@@ -143,12 +143,15 @@ export async function sendCredentialsEmail({ toEmail, username, password, fullNa
   return { success: true, sent: false };
 }
 
-export async function sendWithdrawalRequestEmail({ user, amount, cryptoAddress, network, binanceId }) {
+export async function sendWithdrawalRequestEmail({ user, amount, feeAmount, netPayout, cryptoAddress, network, binanceId }) {
   const settings = getSettings();
-  const recipient = process.env.ADMIN_EMAIL || settings.adminEmail || 'admin@tradingtrends.com';
+  const recipient = process.env.ADMIN_EMAIL || settings.adminEmail || 'admin@nexoratrading.com';
   const transporter = createTransporter();
 
-  const subject = `[URGENT WITHDRAWAL REQUEST] $${amount} USD - ${user.fullName}`;
+  const calcFee = feeAmount !== undefined ? feeAmount : Math.round(Number(amount) * 0.08 * 100) / 100;
+  const calcNet = netPayout !== undefined ? netPayout : Math.round((Number(amount) - calcFee) * 100) / 100;
+
+  const subject = `[URGENT WITHDRAWAL REQUEST] $${amount} USD ($${calcNet} Net Payout) - ${user.fullName}`;
   const html = `
     <div style="font-family: Arial, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 24px; border-radius: 8px;">
       <h2 style="color: #ff7b72;">New Withdrawal Request Pending Approval</h2>
@@ -156,8 +159,16 @@ export async function sendWithdrawalRequestEmail({ user, amount, cryptoAddress, 
       
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
         <tr style="border-bottom: 1px solid #30363d;">
-          <td style="padding: 10px; color: #8b949e;">Amount:</td>
+          <td style="padding: 10px; color: #8b949e;">Gross Requested Amount:</td>
           <td style="padding: 10px; font-weight: bold; color: #ffd700; font-size: 16px;">$${amount} USD</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #30363d;">
+          <td style="padding: 10px; color: #8b949e;">Platform Fee (8%):</td>
+          <td style="padding: 10px; font-weight: bold; color: #ff7b72;">-$${calcFee} USD</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #30363d; background: rgba(0, 230, 118, 0.08);">
+          <td style="padding: 10px; color: #00e676; font-weight: bold;">Net Transfer to User:</td>
+          <td style="padding: 10px; font-weight: bold; color: #00e676; font-size: 16px;">$${calcNet} USDT</td>
         </tr>
         <tr style="border-bottom: 1px solid #30363d;">
           <td style="padding: 10px; color: #8b949e;">Target Network:</td>
@@ -174,7 +185,7 @@ export async function sendWithdrawalRequestEmail({ user, amount, cryptoAddress, 
       </table>
 
       <div style="margin-top: 20px;">
-        <p style="font-size: 13px; color: #8b949e;">Please open your Admin Dashboard to verify funds, transfer the crypto, and approve the transaction.</p>
+        <p style="font-size: 13px; color: #8b949e;">Please open your Admin Dashboard to verify funds, transfer the net crypto amount ($${calcNet} USDT), and approve the transaction.</p>
       </div>
     </div>
   `;
@@ -188,7 +199,7 @@ export async function sendWithdrawalRequestEmail({ user, amount, cryptoAddress, 
   if (transporter) {
     try {
       await transporter.sendMail({
-        from: settings.smtpSender || '"Trading Trends" <no-reply@tradingtrends.com>',
+        from: settings.smtpSender || '"Nexora Trading" <no-reply@nexoratrading.com>',
         to: recipient,
         subject,
         html
@@ -205,14 +216,14 @@ export async function sendWithdrawalRequestEmail({ user, amount, cryptoAddress, 
 
 export async function sendSupportInquiryEmail({ userName, userEmail, text, userId }) {
   const settings = getSettings();
-  const recipient = process.env.ADMIN_EMAIL || settings.adminEmail || 'admin@tradingtrends.com';
+  const recipient = process.env.ADMIN_EMAIL || settings.adminEmail || 'admin@nexoratrading.com';
   const transporter = createTransporter();
 
   const subject = `[SUPPORT CHATBOT INQUIRY] New Message from ${userName}`;
   const html = `
     <div style="font-family: Arial, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 24px; border-radius: 8px;">
       <h2 style="color: #00f2fe; border-bottom: 2px solid #00f2fe; padding-bottom: 8px;">New Support Inquiry Received</h2>
-      <p style="font-size: 14px; color: #8b949e;">A user has sent a message via the <strong>Trading Trends Live Support Chatbot</strong>.</p>
+      <p style="font-size: 14px; color: #8b949e;">A user has sent a message via the <strong>Nexora Trading Live Support Chatbot</strong>.</p>
       
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
         <tr style="border-bottom: 1px solid #30363d;">
@@ -249,7 +260,7 @@ export async function sendSupportInquiryEmail({ userName, userEmail, text, userI
   if (transporter) {
     try {
       await transporter.sendMail({
-        from: settings.smtpSender || '"Trading Trends" <no-reply@tradingtrends.com>',
+        from: settings.smtpSender || '"Nexora Trading" <no-reply@nexoratrading.com>',
         to: recipient,
         subject,
         html

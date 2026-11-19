@@ -47,6 +47,18 @@ export function SupportChat() {
     }
   }, [messages, isOpen]);
 
+  // Listen for global open-support-chat event (e.g. from KYC completion)
+  useEffect(() => {
+    const handleOpenChat = (e) => {
+      setIsOpen(true);
+      if (e.detail?.message) {
+        setInputVal(e.detail.message);
+      }
+    };
+    window.addEventListener('open-support-chat', handleOpenChat);
+    return () => window.removeEventListener('open-support-chat', handleOpenChat);
+  }, []);
+
   // Fetch messages from backend
   const fetchMessages = async () => {
     try {
@@ -133,7 +145,7 @@ export function SupportChat() {
 
   const quickPrompts = [
     'How do I deposit funds via USDT?',
-    'Explain the Mon-Fri 3% compounding',
+    'Explain the Mon-Fri 1% compounding',
     'What is the minimum deposit?',
     'I need help with my account'
   ];
@@ -159,13 +171,13 @@ export function SupportChat() {
             width: '60px',
             height: '60px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+            background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%)',
             border: 'none',
-            boxShadow: '0 8px 24px rgba(0, 242, 254, 0.45)',
+            boxShadow: '0 8px 30px rgba(59, 130, 246, 0.5), 0 0 15px rgba(6, 182, 212, 0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#07090e',
+            color: '#ffffff',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: isOpen ? 'rotate(90deg)' : 'scale(1)'
@@ -266,7 +278,7 @@ export function SupportChat() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#fff' }}>
-                    Trading Trends Support
+                    Nexora Trading Support
                   </h4>
                   <span
                     style={{
@@ -358,9 +370,9 @@ export function SupportChat() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#00f2fe', fontWeight: 600 }}>
-                <Sparkles size={14} /> Welcome to Trading Trends Desk
+                <Sparkles size={14} /> Welcome to Nexora Trading Desk
               </div>
-              Ask any question about your deposit, 3% weekday yield, withdrawals, or account setup. You can chat directly with our Customer Support team.
+              Ask any question about your deposit, 1% weekday yield, withdrawals, or account setup. You can chat directly with our Customer Support team.
             </div>
 
             {/* Quick Prompts if conversation is short */}
@@ -489,7 +501,7 @@ export function SupportChat() {
             style={{
               padding: '12px 14px',
               borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              background: 'rgba(7, 10, 18, 0.9)'
+              background: 'rgba(15, 23, 42, 0.95)'
             }}
           >
             <div

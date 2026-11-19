@@ -25,6 +25,12 @@ export async function login(req, res) {
       return res.status(403).json({ error: 'Your trading account has been suspended by administration.' });
     }
 
+    if (user.status === 'PENDING' || user.status === 'PENDING_VERIFICATION') {
+      return res.status(403).json({
+        error: 'Your account is under compliance verification. When admin accepts your account, you will be eligible for investing. Please contact Customer Support with a screenshot of your confirmation.'
+      });
+    }
+
     const token = generateToken(user);
 
     // Calculate live wallet metrics

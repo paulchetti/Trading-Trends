@@ -1,12 +1,12 @@
 /**
- * Trading Trends Wallet Engine
- * Handles automated calculation of 3% daily compounding growth from Monday to Friday.
+ * Nexora Trading Wallet Engine
+ * Handles automated calculation of 1% daily compounding growth from Monday to Friday.
  * Freezes growth on Saturdays and Sundays.
  */
 
 export function calculateUserWallet(user, approvedWithdrawalsTotal = 0) {
   const initialBalance = Number(user.initialBalance) || 200;
-  const dailyRate = Number(user.dailyGrowthRate) !== undefined ? Number(user.dailyGrowthRate) : 3;
+  const dailyRate = Number(user.dailyGrowthRate) !== undefined ? Number(user.dailyGrowthRate) : 1;
   const manualAdjustment = Number(user.manualAdjustment) || 0;
   const growthStartDate = user.growthStartDate ? new Date(user.growthStartDate) : new Date(user.createdAt);
 

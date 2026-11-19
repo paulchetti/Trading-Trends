@@ -25,13 +25,16 @@ export function AuthProvider({ children }) {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-        setWallet(data.wallet);
-        if (data.user.role === 'ADMIN') {
-          setActiveView('ADMIN_DASHBOARD');
-        } else {
-          setActiveView('USER_DASHBOARD');
+        const text = await res.text();
+        if (text) {
+          const data = JSON.parse(text);
+          setUser(data.user);
+          setWallet(data.wallet);
+          if (data.user?.role === 'ADMIN') {
+            setActiveView('ADMIN_DASHBOARD');
+          } else {
+            setActiveView('USER_DASHBOARD');
+          }
         }
       } else {
         logout();
@@ -44,13 +47,25 @@ export function AuthProvider({ children }) {
   }
 
   async function login(identifier, password) {
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password })
-    });
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
+    } catch (netErr) {
+      throw new Error('Unable to connect to server. Please verify backend is running on port 5050.');
+    }
 
-    const data = await res.json();
+    let data;
+    const text = await res.text();
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      throw new Error(`Server returned non-JSON response (Status ${res.status})`);
+    }
+
     if (!res.ok) {
       throw new Error(data.error || 'Failed to login');
     }

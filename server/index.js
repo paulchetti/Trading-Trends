@@ -15,7 +15,8 @@ import {
   inspectUserDashboard,
   fetchPlatformSettings,
   savePlatformSettings,
-  fetchKycSubmissions
+  fetchKycSubmissions,
+  acceptKycSubmission
 } from './controllers/adminController.js';
 import {
   requestWithdrawal,
@@ -42,7 +43,9 @@ import {
   updateBotConfig,
   initDatabase,
   getSettings,
-  getDatabaseStatus
+  getDatabaseStatus,
+  getUserById,
+  generateReferralCode
 } from './database.js';
 
 dotenv.config();
@@ -70,7 +73,7 @@ app.get('/api/health', (req, res) => {
   const dbStatus = getDatabaseStatus();
   res.json({
     status: 'online',
-    platform: 'Trading Trends API Engine',
+    platform: 'Nexora Trading API Engine',
     database: dbStatus,
     timestamp: new Date().toISOString()
   });
@@ -86,17 +89,26 @@ app.get('/api/download/apk', (req, res) => {
     if (settings && settings.apkDownloadUrl && settings.apkDownloadUrl.trim()) {
       return res.redirect(settings.apkDownloadUrl.trim());
     }
-    const serverApk = path.join(__dirname, 'downloads', 'TradingTrends.apk');
-    const clientApk = path.join(__dirname, '../client/public', 'TradingTrends.apk');
+    const serverApk = path.join(__dirname, 'downloads', 'NexoraTrading.apk');
+    const legacyServerApk = path.join(__dirname, 'downloads', 'TradingTrends.apk');
+    const clientApk = path.join(__dirname, '../client/public', 'NexoraTrading.apk');
+    const legacyClientApk = path.join(__dirname, '../client/public', 'TradingTrends.apk');
+
     if (fs.existsSync(serverApk)) {
-      return res.download(serverApk, 'TradingTrends.apk');
+      return res.download(serverApk, 'NexoraTrading.apk');
+    }
+    if (fs.existsSync(legacyServerApk)) {
+      return res.download(legacyServerApk, 'NexoraTrading.apk');
     }
     if (fs.existsSync(clientApk)) {
-      return res.download(clientApk, 'TradingTrends.apk');
+      return res.download(clientApk, 'NexoraTrading.apk');
     }
-    res.setHeader('Content-Disposition', 'attachment; filename="TradingTrends.apk"');
+    if (fs.existsSync(legacyClientApk)) {
+      return res.download(legacyClientApk, 'NexoraTrading.apk');
+    }
+    res.setHeader('Content-Disposition', 'attachment; filename="NexoraTrading.apk"');
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    return res.send(Buffer.from('PK\x03\x04TradingTrends-APK-Release'));
+    return res.send(Buffer.from('PK\x03\x04NexoraTrading-APK-Release'));
   } catch (err) {
     return res.status(500).json({ error: 'Failed to download APK: ' + err.message });
   }
@@ -113,6 +125,27 @@ app.get('/api/auth/me', authenticateToken, getCurrentUser);
 app.post('/api/transactions/withdraw', authenticateToken, requestWithdrawal);
 app.post('/api/transactions/deposit', authenticateToken, submitDepositNotice);
 app.get('/api/transactions/my', authenticateToken, getMyTransactions);
+
+// Referral System Stats Route
+app.get('/api/referrals/my-stats', authenticateToken, (req, res) => {
+  try {
+    const user = getUserById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const referralCode = user.referralCode || generateReferralCode(user.username);
+    const referrals = Array.isArray(user.referrals) ? user.referrals : [];
+    const totalEarnings = Number(user.totalReferralEarnings) || 0;
+    return res.json({
+      success: true,
+      referralCode,
+      totalReferred: referrals.length,
+      totalEarnings,
+      commissionRate: '5%',
+      referrals
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load referral stats: ' + err.message });
+  }
+});
 
 // Support & Chatbot Routes (User / Visitor)
 app.get('/api/support/messages', optionalAuthenticateToken, getUserMessages);
@@ -136,6 +169,7 @@ app.get('/api/admin/transactions', authenticateToken, requireAdmin, listAllTrans
 app.put('/api/admin/transactions/:id/status', authenticateToken, requireAdmin, handleTransactionStatus);
 
 app.get('/api/admin/kyc-submissions', authenticateToken, requireAdmin, fetchKycSubmissions);
+app.post('/api/admin/kyc-submissions/:id/accept', authenticateToken, requireAdmin, acceptKycSubmission);
 app.get('/api/admin/settings', authenticateToken, requireAdmin, fetchPlatformSettings);
 app.put('/api/admin/settings', authenticateToken, requireAdmin, savePlatformSettings);
 
@@ -183,17 +217,29 @@ app.put('/api/admin/bot/config', authenticateToken, requireAdmin, (req, res) => 
   }
 });
 
+// Serve static client build for direct access via http://localhost:5050
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 initDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`====================================================`);
-    console.log(`🚀 Trading Trends Backend running on http://localhost:${PORT}`);
+    console.log(`🚀 Nexora Trading Backend running on http://localhost:${PORT}`);
     console.log(`🔑 Default Admin: admin / admin123`);
-    console.log(`📈 Automated Mon-Fri 3%/day compounding growth engine initialized`);
+    console.log(`📈 Automated Mon-Fri 1%/day compounding growth engine initialized`);
     console.log(`====================================================`);
   });
 }).catch(err => {
   console.error('Database initialization fatal error:', err);
   app.listen(PORT, () => {
-    console.log(`🚀 Trading Trends running on http://localhost:${PORT}`);
+    console.log(`🚀 Nexora Trading running on http://localhost:${PORT}`);
   });
 });

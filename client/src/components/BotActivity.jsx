@@ -12,7 +12,7 @@ export function BotActivity({ isWeekend = false }) {
 
   const [botConfig, setBotConfig] = useState({
     status: 'ACTIVE',
-    dailyYield: '+3.0% / Day',
+    dailyYield: '+1.0% / Day',
     winRate: '94.2%',
     schedule: 'Monday – Friday',
     riskProtocol: 'Capital Shielded'
@@ -48,19 +48,20 @@ export function BotActivity({ isWeekend = false }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
-            background: 'rgba(0, 242, 254, 0.1)',
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(6, 182, 212, 0.35)'
           }}>
-            <Cpu size={20} color="#00f2fe" />
+            <Cpu size={22} color="#ffffff" />
           </div>
           <div>
-            <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>Trading Trends Alpha-V Bot</h4>
-            <p style={{ fontSize: '11px', color: '#9ca3af' }}>Institutional Algorithmic High-Frequency Strategy</p>
+            <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>Nexora Trading Alpha-V Bot</h4>
+            <p style={{ fontSize: '11px', color: '#94a3b8' }}>Institutional Algorithmic High-Frequency Strategy</p>
           </div>
         </div>
 
@@ -70,7 +71,7 @@ export function BotActivity({ isWeekend = false }) {
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              backgroundColor: isPaused ? '#ffb703' : '#00e676'
+              backgroundColor: isPaused ? '#fbbf24' : '#34d399'
             }}></span>
             {isPaused ? (isWeekend ? 'Weekend Paused' : 'Bot Engine Paused') : 'Bot Active & Profiting'}
           </span>
@@ -79,31 +80,31 @@ export function BotActivity({ isWeekend = false }) {
 
       {/* Bot Key Metrics */}
       <div className="bot-metrics-grid">
-        <div style={{ background: '#090d16', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <div style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase' }}>Daily Strategy Yield</div>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: isPaused ? '#9ca3af' : '#00e676', fontFamily: 'JetBrains Mono', marginTop: '2px' }}>
-            {isPaused ? '0.00% (Paused)' : botConfig.dailyYield || '+3.0% / Day'}
+        <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Daily Strategy Yield</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: isPaused ? '#94a3b8' : '#34d399', fontFamily: 'JetBrains Mono', marginTop: '2px' }}>
+            {isPaused ? '0.00% (Paused)' : botConfig.dailyYield || '+1.0% / Day'}
           </div>
         </div>
 
-        <div style={{ background: '#090d16', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <div style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase' }}>Model Win Rate</div>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#00f2fe', fontFamily: 'JetBrains Mono', marginTop: '2px' }}>
+        <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Model Win Rate</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: '#38bdf8', fontFamily: 'JetBrains Mono', marginTop: '2px' }}>
             {botConfig.winRate || '94.2%'}
           </div>
         </div>
 
-        <div style={{ background: '#090d16', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <div style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase' }}>Trading Schedule</div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff', marginTop: '4px' }}>
+        <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Trading Schedule</div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', marginTop: '4px' }}>
             {botConfig.schedule || 'Monday – Friday'}
           </div>
         </div>
 
-        <div style={{ background: '#090d16', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <div style={{ fontSize: '10px', color: '#9ca3af', textTransform: 'uppercase' }}>Risk Protocol</div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#00e676', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Shield size={13} /> {botConfig.riskProtocol || 'Capital Shielded'}
+        <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Risk Protocol</div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#fbbf24', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Shield size={14} /> {botConfig.riskProtocol || 'Capital Shielded'}
           </div>
         </div>
       </div>
@@ -113,15 +114,15 @@ export function BotActivity({ isWeekend = false }) {
         <div style={{ fontSize: '12px', fontWeight: 600, color: '#9ca3af' }}>
           Recent Algorithmic Trade Executions:
         </div>
-        <div style={{ fontSize: '11px', color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#00f2fe', display: 'inline-block' }}></span> Live Feed
+        <div style={{ fontSize: '11px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#38bdf8', boxShadow: '0 0 8px #38bdf8', display: 'inline-block' }}></span> Live Feed
         </div>
       </div>
 
       <div style={{
-        background: '#070a10',
-        borderRadius: '10px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        background: 'rgba(15, 23, 42, 0.65)',
+        borderRadius: '12px',
+        border: '1px solid rgba(148, 163, 184, 0.18)',
         overflow: 'hidden'
       }}>
         {trades.length === 0 ? (

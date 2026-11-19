@@ -30,13 +30,13 @@ const DEFAULT_SETTINGS = {
   smtpPort: 587,
   smtpUser: '',
   smtpPass: '',
-  smtpSender: 'Trading Trends <no-reply@tradingtrends.com>',
+  smtpSender: 'Nexora Trading <no-reply@nexoratrading.com>',
   apkDownloadUrl: ''
 };
 
 export const DEFAULT_BOT_CONFIG = {
   status: 'ACTIVE', // 'ACTIVE' or 'PAUSED'
-  dailyYield: '+3.0% / Day',
+  dailyYield: '+1.0% / Day',
   winRate: '94.2%',
   schedule: 'Monday – Friday',
   riskProtocol: 'Capital Shielded'
@@ -58,7 +58,7 @@ export async function connectToMongo(mongoUri) {
       serverSelectionTimeoutMS: 10000
     });
     await mongoClient.connect();
-    const db = mongoClient.db('TradingTrends');
+    const db = mongoClient.db('NexoraTrading');
     mongoCollection = db.collection('app_store');
     console.log('✅ Connected to MongoDB Atlas successfully!');
     mongoLastError = null;
@@ -125,7 +125,7 @@ function readLocalDb() {
       initialDb.users.push({
         id: 'admin-001',
         username: 'admin',
-        email: 'admin@tradingtrends.com',
+        email: 'admin@nexoratrading.com',
         passwordHash: adminPasswordHash,
         role: 'ADMIN',
         fullName: 'System Administrator',
@@ -147,6 +147,23 @@ function readLocalDb() {
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (!parsed.users || !Array.isArray(parsed.users)) parsed.users = [];
+    parsed.users.forEach(u => {
+      if (!u.referralCode) {
+        u.referralCode = generateReferralCode(u.username);
+      }
+      if (!Array.isArray(u.referrals)) {
+        u.referrals = [];
+      }
+      if (u.totalReferralEarnings === undefined) {
+        u.totalReferralEarnings = 0;
+      }
+      if (u.bonusBalance === undefined) {
+        u.bonusBalance = 0;
+      }
+      if (u.investedAmount === undefined) {
+        u.investedAmount = Number(u.initialBalance) || 200;
+      }
+    });
     if (!parsed.transactions || !Array.isArray(parsed.transactions)) parsed.transactions = [];
     if (!parsed.kycSubmissions || !Array.isArray(parsed.kycSubmissions)) parsed.kycSubmissions = [];
     if (!parsed.botTrades || !Array.isArray(parsed.botTrades)) parsed.botTrades = [...DEFAULT_BOT_TRADES];
@@ -232,6 +249,12 @@ export function getDatabaseStatus() {
 }
 
 // User Helpers
+export function generateReferralCode(username = '') {
+  const clean = String(username).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'NX';
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `NX-${clean}${rand}`;
+}
+
 export function getAllUsers() {
   const db = readDb();
   return db.users;
@@ -240,6 +263,13 @@ export function getAllUsers() {
 export function getUserById(id) {
   const db = readDb();
   return db.users.find(u => u.id === id);
+}
+
+export function getUserByReferralCode(code) {
+  if (!code) return null;
+  const db = readDb();
+  const clean = String(code).trim().toUpperCase();
+  return db.users.find(u => u.referralCode && u.referralCode.toUpperCase() === clean);
 }
 
 export function getUserByEmailOrUsername(identifier) {
@@ -258,6 +288,10 @@ export function createUser(userData) {
   const salt = bcrypt.genSaltSync(10);
   const passwordHash = bcrypt.hashSync(userData.password, salt);
 
+  const referralCode = userData.referralCode || generateReferralCode(userData.username);
+  const investedAmount = Number(userData.investedAmount) || Number(userData.initialBalance) || 200;
+  const bonusBalance = Number(userData.bonusBalance) || 0;
+
   const newUser = {
     id,
     username: userData.username,
@@ -271,10 +305,16 @@ export function createUser(userData) {
     aadharNo: userData.aadharNo || '',
     panNo: userData.panNo || '',
     initialBalance: Number(userData.initialBalance) || 200,
-    dailyGrowthRate: Number(userData.dailyGrowthRate) !== undefined ? Number(userData.dailyGrowthRate) : 3,
+    investedAmount,
+    bonusBalance,
+    dailyGrowthRate: Number(userData.dailyGrowthRate) !== undefined ? Number(userData.dailyGrowthRate) : 1,
     growthStartDate: userData.growthStartDate || new Date().toISOString(),
     manualAdjustment: Number(userData.manualAdjustment) || 0,
     status: userData.status || 'ACTIVE',
+    referralCode,
+    referredBy: userData.referredBy || null,
+    referrals: Array.isArray(userData.referrals) ? userData.referrals : [],
+    totalReferralEarnings: Number(userData.totalReferralEarnings) || 0,
     createdAt: new Date().toISOString()
   };
 
@@ -337,8 +377,12 @@ export function createTransaction(txData) {
     userId: txData.userId,
     userName: txData.userName || '',
     userEmail: txData.userEmail || '',
-    type: txData.type, // 'WITHDRAWAL', 'DEPOSIT', 'ADMIN_ADJUST'
+    type: txData.type, // 'WITHDRAWAL', 'DEPOSIT', 'REFERRAL_BONUS', 'ADMIN_ADJUST'
     amount: Number(txData.amount) || 0,
+    feeAmount: txData.feeAmount !== undefined ? Number(txData.feeAmount) : undefined,
+    feeRate: txData.feeRate || undefined,
+    netPayout: txData.netPayout !== undefined ? Number(txData.netPayout) : undefined,
+    bonusAmount: txData.bonusAmount !== undefined ? Number(txData.bonusAmount) : undefined,
     cryptoAddress: txData.cryptoAddress || '',
     network: txData.network || 'USDT (TRC-20)',
     binanceId: txData.binanceId || '',
@@ -400,6 +444,16 @@ export function addKycSubmission(submission) {
 export function getAllKycSubmissions() {
   const db = readDb();
   return db.kycSubmissions || [];
+}
+
+export function updateKycSubmission(id, updates) {
+  const db = readDb();
+  if (!db.kycSubmissions) return null;
+  const idx = db.kycSubmissions.findIndex(s => s.id === id);
+  if (idx === -1) return null;
+  db.kycSubmissions[idx] = { ...db.kycSubmissions[idx], ...updates, updatedAt: new Date().toISOString() };
+  writeDb(db);
+  return db.kycSubmissions[idx];
 }
 
 // Bot Trades & Config Helpers

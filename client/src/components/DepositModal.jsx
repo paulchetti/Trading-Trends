@@ -87,7 +87,7 @@ export function DepositModal({ isOpen, onClose }) {
             </div>
             <div>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Deposit Cryptocurrency</h3>
-              <p style={{ fontSize: '12px', color: '#9ca3af' }}>Transfer funds to your Trading Trends account</p>
+              <p style={{ fontSize: '12px', color: '#9ca3af' }}>Transfer funds to your Nexora Trading account</p>
             </div>
           </div>
           <button
@@ -102,6 +102,38 @@ export function DepositModal({ isOpen, onClose }) {
           >
             <X size={20} />
           </button>
+        </div>
+
+        {/* 10% Investment Bonus Highlight Banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)',
+          border: '1px solid rgba(251, 191, 36, 0.4)',
+          borderRadius: '12px',
+          padding: '12px 14px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            background: 'rgba(251, 191, 36, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            fontSize: '16px'
+          }}>
+            🎁
+          </div>
+          <div style={{ fontSize: '12px', lineHeight: '1.45', color: '#e2e8f0' }}>
+            <strong style={{ color: '#fbbf24', display: 'block', marginBottom: '2px' }}>
+              +10% Instant Investment Bonus
+            </strong>
+            Every deposit automatically qualifies for an extra 10% bonus credited directly to your active trading capital upon approval!
+          </div>
         </div>
 
         {/* Network & Currency Selection */}
@@ -277,6 +309,33 @@ export function DepositModal({ isOpen, onClose }) {
                 style={{ fontSize: '13px', padding: '10px 12px' }}
               />
             </div>
+
+            {/* Live 10% Bonus Preview */}
+            {Number(amount) > 0 && (
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.7)',
+                border: '1px solid rgba(0, 242, 254, 0.25)',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                marginBottom: '10px',
+                fontSize: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ color: '#94a3b8' }}>Deposited Capital:</span>
+                  <strong style={{ color: '#ffffff' }}>${Number(amount).toFixed(2)} USD</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ color: '#fbbf24' }}>+ 10% Investment Bonus:</span>
+                  <strong style={{ color: '#fbbf24' }}>+${(Number(amount) * 0.10).toFixed(2)} USD</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <span style={{ color: '#00e676', fontWeight: 700 }}>Total Balance Credited:</span>
+                  <strong style={{ color: '#00e676', fontFamily: 'JetBrains Mono' }}>
+                    ${(Number(amount) * 1.10).toFixed(2)} USD
+                  </strong>
+                </div>
+              </div>
+            )}
             <button
               type="submit"
               className="btn btn-secondary"

@@ -2,14 +2,17 @@ import {
   getAllUsers,
   getUserById,
   getUserByEmailOrUsername,
+  getUserByReferralCode,
   createUser,
   updateUser,
   deleteUser,
+  createTransaction,
   getAllTransactions,
   getTransactionsByUserId,
   getSettings,
   updateSettings,
-  getAllKycSubmissions
+  getAllKycSubmissions,
+  updateKycSubmission
 } from '../database.js';
 import { calculateUserWallet } from '../services/walletEngine.js';
 import { sendCredentialsEmail } from '../services/emailService.js';
@@ -54,7 +57,7 @@ export async function createNewUser(req, res) {
       aadharNo,
       panNo,
       initialBalance = 200,
-      dailyGrowthRate = 3,
+      dailyGrowthRate = 1,
       status = 'ACTIVE',
       sendEmailToUser = true
     } = req.body;
@@ -74,6 +77,10 @@ export async function createNewUser(req, res) {
       });
     }
 
+    const baseInvested = Math.max(0, Number(initialBalance));
+    const investmentBonus = Math.round(baseInvested * 0.10 * 100) / 100; // 10% Bonus
+    const startingBalance = baseInvested + investmentBonus;
+
     const newUser = createUser({
       username: cleanUsername,
       email: cleanEmail,
@@ -85,12 +92,59 @@ export async function createNewUser(req, res) {
       address: address || '',
       aadharNo: aadharNo || '',
       panNo: panNo || '',
-      initialBalance: Math.max(0, Number(initialBalance)),
+      initialBalance: startingBalance,
+      investedAmount: baseInvested,
+      bonusBalance: investmentBonus,
       dailyGrowthRate: Number(dailyGrowthRate),
       growthStartDate: new Date().toISOString(),
       manualAdjustment: 0,
+      referredBy: req.body.referredBy || null,
       status
     });
+
+    if (baseInvested > 0) {
+      createTransaction({
+        userId: newUser.id,
+        userName: newUser.fullName || newUser.username,
+        userEmail: newUser.email,
+        type: 'DEPOSIT',
+        amount: baseInvested,
+        bonusAmount: investmentBonus,
+        status: 'APPROVED',
+        note: `Initial Investment ($${baseInvested.toFixed(2)}) + 10% Bonus ($${investmentBonus.toFixed(2)})`
+      });
+
+      // 5% Referral bonus if referred
+      if (req.body.referredBy) {
+        const referrer = getUserById(req.body.referredBy) || getUserByReferralCode(req.body.referredBy);
+        if (referrer && referrer.id !== newUser.id) {
+          const commission = Math.round(baseInvested * 0.05 * 100) / 100;
+          if (commission > 0) {
+            updateUser(referrer.id, {
+              initialBalance: (Number(referrer.initialBalance) || 0) + commission,
+              totalReferralEarnings: (Number(referrer.totalReferralEarnings) || 0) + commission,
+              referrals: [...(referrer.referrals || []), {
+                userId: newUser.id,
+                name: newUser.fullName || newUser.username,
+                email: newUser.email,
+                investedAmount: baseInvested,
+                commissionEarned: commission,
+                date: new Date().toISOString()
+              }]
+            });
+            createTransaction({
+              userId: referrer.id,
+              userName: referrer.fullName || referrer.username,
+              userEmail: referrer.email,
+              type: 'REFERRAL_BONUS',
+              amount: commission,
+              status: 'APPROVED',
+              note: `5% Referral Commission from ${newUser.fullName}'s investment of $${baseInvested.toFixed(2)}`
+            });
+          }
+        }
+      }
+    }
 
     // Optionally dispatch credentials to the user's email
     if (sendEmailToUser) {
@@ -108,7 +162,7 @@ export async function createNewUser(req, res) {
 
     return res.status(201).json({
       success: true,
-      message: `User ${newUser.username} created successfully!`,
+      message: `User ${newUser.username} created successfully with 10% bonus ($${investmentBonus.toFixed(2)})!`,
       user: safeUser
     });
   } catch (err) {
@@ -209,6 +263,116 @@ export async function fetchKycSubmissions(req, res) {
   }
 }
 
+export async function acceptKycSubmission(req, res) {
+  try {
+    const { id } = req.params;
+    const { initialBalance = 200, dailyGrowthRate = 1 } = req.body;
+    const submissions = getAllKycSubmissions();
+    const sub = submissions.find(s => s.id === id);
+    if (!sub) {
+      return res.status(404).json({ error: 'KYC submission not found' });
+    }
+
+    const investedAmount = Math.max(0, Number(initialBalance) || 200);
+    const investmentBonus = Math.round(investedAmount * 0.10 * 100) / 100; // 10% Investment Bonus
+    const startingBalance = investedAmount + investmentBonus;
+
+    let user = sub.userId ? getUserById(sub.userId) : getUserByEmailOrUsername(sub.email);
+    if (user) {
+      updateUser(user.id, {
+        status: 'ACTIVE',
+        initialBalance: startingBalance,
+        investedAmount,
+        bonusBalance: (Number(user.bonusBalance) || 0) + investmentBonus,
+        dailyGrowthRate: Number(dailyGrowthRate) || user.dailyGrowthRate || 1,
+        growthStartDate: new Date().toISOString()
+      });
+      user = getUserById(user.id);
+    } else {
+      const baseUsername = sub.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+      const uniqueUsername = baseUsername + Math.floor(100 + Math.random() * 900);
+      user = createUser({
+        username: uniqueUsername,
+        email: sub.email,
+        password: 'NT-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '!',
+        fullName: sub.name,
+        phone: sub.phone,
+        dob: sub.dob,
+        address: sub.address,
+        aadharNo: sub.aadhar,
+        panNo: sub.pan,
+        initialBalance: startingBalance,
+        investedAmount,
+        bonusBalance: investmentBonus,
+        dailyGrowthRate: Number(dailyGrowthRate) || 1,
+        referredBy: sub.referralCode || sub.referredBy || null,
+        status: 'ACTIVE'
+      });
+    }
+
+    // Log the user's initial deposit transaction with 10% bonus
+    createTransaction({
+      userId: user.id,
+      userName: user.fullName || user.username,
+      userEmail: user.email,
+      type: 'DEPOSIT',
+      amount: investedAmount,
+      bonusAmount: investmentBonus,
+      status: 'APPROVED',
+      note: `Initial Investment ($${investedAmount.toFixed(2)}) + 10% Bonus ($${investmentBonus.toFixed(2)})`
+    });
+
+    // 5% Referral Commission if user was referred by someone
+    const refCode = user.referredBy || sub.referralCode || sub.referredBy;
+    if (refCode) {
+      const referrer = getUserById(refCode) || getUserByReferralCode(refCode);
+      if (referrer && referrer.id !== user.id) {
+        const refCommission = Math.round(investedAmount * 0.05 * 100) / 100; // 5% Commission
+        if (refCommission > 0) {
+          const updatedRefBalance = (Number(referrer.initialBalance) || 0) + refCommission;
+          const updatedTotalEarnings = (Number(referrer.totalReferralEarnings) || 0) + refCommission;
+          const currentReferrals = Array.isArray(referrer.referrals) ? [...referrer.referrals] : [];
+          currentReferrals.push({
+            userId: user.id,
+            name: user.fullName || user.username,
+            email: user.email,
+            investedAmount,
+            commissionEarned: refCommission,
+            date: new Date().toISOString()
+          });
+
+          updateUser(referrer.id, {
+            initialBalance: updatedRefBalance,
+            totalReferralEarnings: updatedTotalEarnings,
+            referrals: currentReferrals
+          });
+
+          createTransaction({
+            userId: referrer.id,
+            userName: referrer.fullName || referrer.username,
+            userEmail: referrer.email,
+            type: 'REFERRAL_BONUS',
+            amount: refCommission,
+            status: 'APPROVED',
+            note: `5% Referral Commission from ${user.fullName || user.username}'s investment of $${investedAmount.toFixed(2)}`
+          });
+        }
+      }
+    }
+
+    updateKycSubmission(id, { status: 'APPROVED', approvedAt: new Date().toISOString() });
+
+    return res.json({
+      success: true,
+      message: `Account for ${sub.name} has been accepted and activated! Credited $${investedAmount.toFixed(2)} + 10% bonus ($${investmentBonus.toFixed(2)}) = $${startingBalance.toFixed(2)}.`,
+      user
+    });
+  } catch (err) {
+    console.error('Accept KYC error:', err);
+    return res.status(500).json({ error: 'Failed to accept KYC submission: ' + err.message });
+  }
+}
+
 export async function inspectUserDashboard(req, res) {
   try {
     const { id } = req.params;
@@ -216,7 +380,7 @@ export async function inspectUserDashboard(req, res) {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const userTxs = getTransactionsByUserId(id);
-    const growthStart = updated.growthStartDate ? new Date(updated.growthStartDate).getTime() : 0;
+    const growthStart = user.growthStartDate ? new Date(user.growthStartDate).getTime() : 0;
     const approvedWithdrawals = userTxs
       .filter(t => t.type === 'WITHDRAWAL' && t.status === 'APPROVED' && new Date(t.createdAt).getTime() >= growthStart)
       .reduce((sum, t) => sum + Number(t.amount), 0);
