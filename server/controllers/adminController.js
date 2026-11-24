@@ -12,7 +12,8 @@ import {
   getSettings,
   updateSettings,
   getAllKycSubmissions,
-  updateKycSubmission
+  updateKycSubmission,
+  flushDatabase
 } from '../database.js';
 import { calculateUserWallet } from '../services/walletEngine.js';
 import { sendCredentialsEmail } from '../services/emailService.js';
@@ -146,6 +147,8 @@ export async function createNewUser(req, res) {
       }
     }
 
+    await flushDatabase();
+
     // Optionally dispatch credentials to the user's email
     if (sendEmailToUser) {
       await sendCredentialsEmail({
@@ -206,6 +209,7 @@ export async function editUser(req, res) {
       .filter(t => t.type === 'WITHDRAWAL' && t.status === 'APPROVED' && new Date(t.createdAt).getTime() >= growthStart)
       .reduce((sum, t) => sum + Number(t.amount), 0);
     const wallet = calculateUserWallet(updated, approvedWithdrawals);
+    await flushDatabase();
 
     return res.json({
       success: true,
@@ -230,6 +234,7 @@ export async function removeUser(req, res) {
     }
 
     deleteUser(id);
+    await flushDatabase();
     return res.json({ success: true, message: 'User account removed successfully' });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to delete user: ' + err.message });
@@ -248,6 +253,7 @@ export async function fetchPlatformSettings(req, res) {
 export async function savePlatformSettings(req, res) {
   try {
     const updated = updateSettings(req.body);
+    await flushDatabase();
     return res.json({ success: true, message: 'Platform settings saved successfully', settings: updated });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to save settings: ' + err.message });
@@ -361,6 +367,7 @@ export async function acceptKycSubmission(req, res) {
     }
 
     updateKycSubmission(id, { status: 'APPROVED', approvedAt: new Date().toISOString() });
+    await flushDatabase();
 
     return res.json({
       success: true,

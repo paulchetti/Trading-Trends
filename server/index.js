@@ -45,7 +45,8 @@ import {
   getSettings,
   getDatabaseStatus,
   getUserById,
-  generateReferralCode
+  generateReferralCode,
+  flushDatabase
 } from './database.js';
 
 dotenv.config();
@@ -183,34 +184,37 @@ app.get('/api/bot/data', (req, res) => {
   }
 });
 
-app.post('/api/admin/bot/trades', authenticateToken, requireAdmin, (req, res) => {
+app.post('/api/admin/bot/trades', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { pair, type, entry, exit, profit, time, status } = req.body;
     if (!pair || !entry) {
       return res.status(400).json({ error: 'Instrument pair and entry price are required' });
     }
     const trade = createBotTrade({ pair, type, entry, exit, profit, time, status });
+    await flushDatabase();
     res.json({ success: true, trade });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create bot trade: ' + err.message });
   }
 });
 
-app.delete('/api/admin/bot/trades/:id', authenticateToken, requireAdmin, (req, res) => {
+app.delete('/api/admin/bot/trades/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const deleted = deleteBotTrade(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Trade not found' });
     }
+    await flushDatabase();
     res.json({ success: true, message: 'Bot trade removed' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete bot trade: ' + err.message });
   }
 });
 
-app.put('/api/admin/bot/config', authenticateToken, requireAdmin, (req, res) => {
+app.put('/api/admin/bot/config', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const updated = updateBotConfig(req.body);
+    await flushDatabase();
     res.json({ success: true, config: updated });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update bot config: ' + err.message });
@@ -239,7 +243,5 @@ initDatabase().then(() => {
   });
 }).catch(err => {
   console.error('Database initialization fatal error:', err);
-  app.listen(PORT, () => {
-    console.log(`🚀 Nexora Trading running on http://localhost:${PORT}`);
-  });
+  process.exitCode = 1;
 });

@@ -7,7 +7,8 @@ import {
   getUserById,
   getUserByReferralCode,
   updateUser,
-  getSettings
+  getSettings,
+  flushDatabase
 } from '../database.js';
 import { calculateUserWallet } from '../services/walletEngine.js';
 import { sendWithdrawalRequestEmail } from '../services/emailService.js';
@@ -62,6 +63,7 @@ export async function requestWithdrawal(req, res) {
       status: 'PENDING',
       note: fullNote
     });
+    await flushDatabase();
 
     // Send email alert to admin with fee & net payout details
     await sendWithdrawalRequestEmail({
@@ -104,6 +106,7 @@ export async function submitDepositNotice(req, res) {
       status: 'PENDING',
       note: note || ''
     });
+    await flushDatabase();
 
     return res.status(201).json({
       success: true,
@@ -213,6 +216,7 @@ export async function handleTransactionStatus(req, res) {
       status,
       note: note !== undefined ? note : undefined
     });
+    await flushDatabase();
 
     return res.json({
       success: true,

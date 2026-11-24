@@ -4,7 +4,7 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
 import { sendKycSubmissionEmail } from '../services/emailService.js';
-import { addKycSubmission, getUserByEmailOrUsername, getUserByReferralCode, createUser, updateUser } from '../database.js';
+import { addKycSubmission, getUserByEmailOrUsername, getUserByReferralCode, createUser, updateUser, flushDatabase } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -144,6 +144,7 @@ export async function submitKyc(req, res) {
 
     // Store in registry for admin verification
     const submissionEntry = addKycSubmission(kycData);
+    await flushDatabase();
 
     // Send email dispatch with attachments to compliance admin
     await sendKycSubmissionEmail({ kycData, files });

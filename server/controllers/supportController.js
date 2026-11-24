@@ -6,11 +6,12 @@ import {
   deleteSupportThreadByUserId,
   deleteSupportMessageById,
   getAllUsers,
-  getUserById
+  getUserById,
+  flushDatabase
 } from '../database.js';
 
 // GET /api/support/messages
-export function getUserMessages(req, res) {
+export async function getUserMessages(req, res) {
   try {
     const userId = req.user?.id || req.query.userId;
     if (!userId) {
@@ -20,6 +21,7 @@ export function getUserMessages(req, res) {
     const messages = getSupportMessagesByUserId(userId);
     // Mark messages as read by the user
     markSupportMessagesRead(userId, 'USER');
+    await flushDatabase();
 
     res.json({ success: true, messages });
   } catch (err) {
@@ -29,7 +31,7 @@ export function getUserMessages(req, res) {
 }
 
 // POST /api/support/messages
-export function sendUserMessage(req, res) {
+export async function sendUserMessage(req, res) {
   try {
     const { text, userId: guestId, userName: guestName, userEmail: guestEmail } = req.body;
 
@@ -70,6 +72,7 @@ export function sendUserMessage(req, res) {
       });
     }
 
+    await flushDatabase();
     res.json({
       success: true,
       message: userMessage,
@@ -154,7 +157,7 @@ export function getAdminConversations(req, res) {
 }
 
 // POST /api/admin/support/reply (Admin only)
-export function sendAdminReply(req, res) {
+export async function sendAdminReply(req, res) {
   try {
     const { userId, text } = req.body;
 
@@ -173,6 +176,7 @@ export function sendAdminReply(req, res) {
       text: text.trim()
     });
 
+    await flushDatabase();
     res.json({ success: true, message: reply });
   } catch (err) {
     console.error('Error sending admin reply:', err);
@@ -181,7 +185,7 @@ export function sendAdminReply(req, res) {
 }
 
 // PUT /api/admin/support/read/:userId (Admin only)
-export function markAdminThreadRead(req, res) {
+export async function markAdminThreadRead(req, res) {
   try {
     const { userId } = req.params;
     if (!userId) {
@@ -189,6 +193,7 @@ export function markAdminThreadRead(req, res) {
     }
 
     markSupportMessagesRead(userId, 'ADMIN');
+    await flushDatabase();
     res.json({ success: true, message: 'Thread marked as read' });
   } catch (err) {
     console.error('Error marking thread as read:', err);
@@ -197,7 +202,7 @@ export function markAdminThreadRead(req, res) {
 }
 
 // DELETE /api/admin/support/conversations/:userId (Admin only)
-export function clearAdminConversation(req, res) {
+export async function clearAdminConversation(req, res) {
   try {
     const { userId } = req.params;
     if (!userId) {
@@ -205,6 +210,7 @@ export function clearAdminConversation(req, res) {
     }
 
     const deletedCount = deleteSupportThreadByUserId(userId);
+    await flushDatabase();
     res.json({ success: true, message: `Conversation cleared (${deletedCount} messages deleted)` });
   } catch (err) {
     console.error('Error clearing conversation:', err);
@@ -213,7 +219,7 @@ export function clearAdminConversation(req, res) {
 }
 
 // DELETE /api/admin/support/messages/:messageId (Admin only)
-export function deleteSingleMessage(req, res) {
+export async function deleteSingleMessage(req, res) {
   try {
     const { messageId } = req.params;
     if (!messageId) {
@@ -225,6 +231,7 @@ export function deleteSingleMessage(req, res) {
       return res.status(404).json({ error: 'Message not found' });
     }
 
+    await flushDatabase();
     res.json({ success: true, message: 'Message removed successfully' });
   } catch (err) {
     console.error('Error deleting message:', err);

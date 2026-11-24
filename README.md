@@ -71,13 +71,30 @@ The application will be accessible at `http://localhost:5175`.
 
 ---
 
-## 🚀 Free Deployment Guide (No Custom Domain Required)
+## 🚀 Free Deployment Guide
 
-You can deploy the platform 100% free with automated SSL domains:
+The application can be deployed with free automated SSL domains:
 - **Backend API**: Hosted on **Render** (provides free `https://<your-app>.onrender.com`)
 - **Frontend App**: Hosted on **Vercel** (provides free `https://<your-app>.vercel.app`)
 
-### Step 1: Deploy Backend to Render (render.com)
+### Step 1: Create the Supabase database
+1. Create a Supabase project.
+2. In the Supabase SQL Editor, run the contents of [`server/supabase/schema.sql`](./server/supabase/schema.sql).
+3. Copy the project URL and the server-side service-role key. Keep the service-role key private; never add it to Vercel or frontend code.
+
+### Step 2: Migrate existing application data
+Run the migration from a trusted local machine before deploying the new backend:
+
+```powershell
+$env:SUPABASE_URL = "https://<project-ref>.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>"
+$env:MONGODB_URI = "<existing MongoDB Atlas connection string>"
+npm --prefix server run migrate:supabase
+```
+
+The migration copies users, transactions, KYC submission records, settings, and other application data. Uploaded KYC files themselves remain in `server/uploads` and are not copied. If MongoDB is not being used, omit `MONGODB_URI` and the script imports `server/data/store.json` instead. It refuses to overwrite an existing Supabase store unless `--overwrite` is explicitly supplied. Keep the source database until you have verified the migrated accounts.
+
+### Step 3: Deploy Backend to Render (render.com)
 1. Sign up/Log in at [render.com](https://render.com) using your GitHub account.
 2. Click **New +** -> **Web Service**.
 3. Select and connect your repository: `paulchetti/Trading-Trends`.
@@ -92,11 +109,12 @@ You can deploy the platform 100% free with automated SSL domains:
    - `ADMIN_EMAIL` = `tradingtrendsbeta@gmail.com`
    - `JWT_SECRET` = `trading_trends_secure_secret_2026` (or any random string)
    - `NODE_ENV` = `production`
-   - `MONGODB_URI` = `mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority` (Optional: provides permanent 24/7 cloud persistence on Render Free Tier)
+   - `SUPABASE_URL` = your Supabase project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` = your Supabase service-role key
 6. Click **Deploy Web Service**.
 7. Once deployed, copy your backend URL (e.g., `https://trading-trends-api.onrender.com`).
 
-### Step 2: Deploy Frontend to Vercel (vercel.com)
+### Step 4: Deploy Frontend to Vercel (vercel.com)
 1. Sign up/Log in at [vercel.com](https://vercel.com) using your GitHub account.
 2. Click **Add New...** -> **Project**.
 3. Import your `Trading-Trends` repository.
@@ -110,6 +128,8 @@ You can deploy the platform 100% free with automated SSL domains:
    - **Value**: Your Render backend URL from Step 1 (e.g., `https://trading-trends-api.onrender.com`)
 6. Click **Deploy**.
 7. Vercel will instantly generate your live website URL (e.g., `https://trading-trends.vercel.app`) with free SSL.
+
+The backend requires Node.js 22 or newer and stores structured application records in Supabase. KYC document uploads are still written to the Render service filesystem; use a private Supabase Storage bucket if those files must also survive Render restarts.
 
 ---
 

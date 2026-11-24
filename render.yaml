@@ -13,5 +13,7 @@ services:
         value: tradingtrendsbeta@gmail.com
       - key: JWT_SECRET
         generateValue: true
-      - key: MONGODB_URI
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false

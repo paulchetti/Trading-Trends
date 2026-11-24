@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
-import { MongoClient } from 'mongodb';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,10 +15,11 @@ if (!fs.existsSync(DATA_DIR)) {
 
 // In-Memory store cache for instant lookups
 let memoryStore = null;
-let mongoClient = null;
-let mongoCollection = null;
-let mongoLastError = null;
-let isConnecting = false;
+let supabaseClient = null;
+let databaseMode = 'LOCAL_JSON';
+let pendingWrite = Promise.resolve();
+let lastDatabaseError = null;
+const STORE_ID = 'main_store';
 
 const DEFAULT_SETTINGS = {
   depositUsdtAddress: 'TXyZ889KqN7W8B29LkJ5Q81HkMvPqS4eRt',
@@ -49,127 +50,58 @@ export const DEFAULT_BOT_TRADES = [
   { id: 'trade-4', pair: 'BTC/USDT', type: 'SHORT', entry: '65,120.00', exit: '64,950.00', profit: '+$12.50', time: '2 hours ago', status: 'CLOSED' }
 ];
 
-export async function connectToMongo(mongoUri) {
-  if (mongoCollection || isConnecting || !mongoUri) return mongoCollection;
-  isConnecting = true;
-  try {
-    console.log('🔄 Connecting to MongoDB Atlas...');
-    mongoClient = new MongoClient(mongoUri, {
-      serverSelectionTimeoutMS: 10000
-    });
-    await mongoClient.connect();
-    const db = mongoClient.db('NexoraTrading');
-    mongoCollection = db.collection('app_store');
-    console.log('✅ Connected to MongoDB Atlas successfully!');
-    mongoLastError = null;
-
-    const cloudData = await mongoCollection.findOne({ _id: 'main_store' });
-    if (cloudData) {
-      memoryStore = {
-        users: cloudData.users || [],
-        transactions: cloudData.transactions || [],
-        kycSubmissions: cloudData.kycSubmissions || [],
-        settings: { ...DEFAULT_SETTINGS, ...cloudData.settings },
-        botConfig: { ...DEFAULT_BOT_CONFIG, ...cloudData.botConfig },
-        botTrades: cloudData.botTrades || [...DEFAULT_BOT_TRADES],
-        supportMessages: cloudData.supportMessages || []
-      };
-      writeLocalDb(memoryStore);
-      console.log(`✅ MongoDB Sync: Loaded ${memoryStore.users.length} users, ${memoryStore.transactions.length} transactions, and ${memoryStore.botTrades.length} bot trades from cloud.`);
-    } else {
-      // First time connecting to MongoDB: seed cloud from local store.json
-      await mongoCollection.updateOne(
-        { _id: 'main_store' },
-        { $set: memoryStore },
-        { upsert: true }
-      );
-      console.log(`✅ Seeded MongoDB Atlas with initial data (${memoryStore.users.length} users) from store.json!`);
-    }
-    return mongoCollection;
-  } catch (err) {
-    mongoLastError = err;
-    console.error('⚠️ MongoDB connection error (using local store.json fallback):', err.message);
-    return null;
-  } finally {
-    isConnecting = false;
-  }
-}
-
 export async function initDatabase() {
-  const localDb = readLocalDb();
-  memoryStore = localDb;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    console.log('ℹ️ Running in local JSON file database mode. (Set MONGODB_URI in Render to enable permanent MongoDB Atlas cloud persistence)');
+  if (!supabaseUrl && !serviceRoleKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in production.');
+    }
+
+    memoryStore = readLocalDb();
+    databaseMode = 'LOCAL_JSON';
+    console.log('ℹ️ Running in local JSON file database mode.');
     return;
   }
 
-  await connectToMongo(mongoUri);
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured.');
+  }
+
+  supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+
+  const { data: row, error } = await supabaseClient
+    .from('app_store')
+    .select('data')
+    .eq('id', STORE_ID)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load the Supabase app_store row: ${error.message}`);
+  }
+
+  databaseMode = 'SUPABASE';
+  if (row) {
+    memoryStore = normalizeStore(row.data);
+    console.log(`✅ Loaded ${memoryStore.users.length} users and ${memoryStore.transactions.length} transactions from Supabase.`);
+    return;
+  }
+
+  throw new Error('Supabase app_store is empty. Run the data migration before starting the production backend.');
 }
 
 function readLocalDb() {
   try {
     if (!fs.existsSync(DB_FILE)) {
-      const initialDb = {
-        users: [],
-        transactions: [],
-        kycSubmissions: [],
-        settings: { ...DEFAULT_SETTINGS },
-        botConfig: { ...DEFAULT_BOT_CONFIG },
-        botTrades: [...DEFAULT_BOT_TRADES],
-        supportMessages: []
-      };
-      const salt = bcrypt.genSaltSync(10);
-      const adminPasswordHash = bcrypt.hashSync('admin123', salt);
-      initialDb.users.push({
-        id: 'admin-001',
-        username: 'admin',
-        email: 'admin@nexoratrading.com',
-        passwordHash: adminPasswordHash,
-        role: 'ADMIN',
-        fullName: 'System Administrator',
-        phone: '+1 (555) 019-2834',
-        dob: '1985-01-01',
-        address: 'HQ Financial District, New York, NY',
-        aadharNo: 'N/A',
-        panNo: 'N/A',
-        initialBalance: 0,
-        dailyGrowthRate: 0,
-        growthStartDate: new Date().toISOString(),
-        manualAdjustment: 0,
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString()
-      });
+      const initialDb = createInitialDb();
       fs.writeFileSync(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf-8');
       return initialDb;
     }
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    if (!parsed.users || !Array.isArray(parsed.users)) parsed.users = [];
-    parsed.users.forEach(u => {
-      if (!u.referralCode) {
-        u.referralCode = generateReferralCode(u.username);
-      }
-      if (!Array.isArray(u.referrals)) {
-        u.referrals = [];
-      }
-      if (u.totalReferralEarnings === undefined) {
-        u.totalReferralEarnings = 0;
-      }
-      if (u.bonusBalance === undefined) {
-        u.bonusBalance = 0;
-      }
-      if (u.investedAmount === undefined) {
-        u.investedAmount = Number(u.initialBalance) || 200;
-      }
-    });
-    if (!parsed.transactions || !Array.isArray(parsed.transactions)) parsed.transactions = [];
-    if (!parsed.kycSubmissions || !Array.isArray(parsed.kycSubmissions)) parsed.kycSubmissions = [];
-    if (!parsed.botTrades || !Array.isArray(parsed.botTrades)) parsed.botTrades = [...DEFAULT_BOT_TRADES];
-    if (!parsed.botConfig) parsed.botConfig = { ...DEFAULT_BOT_CONFIG };
-    if (!parsed.supportMessages || !Array.isArray(parsed.supportMessages)) parsed.supportMessages = [];
-    return parsed;
+    return normalizeStore(JSON.parse(raw));
   } catch (err) {
     console.error('Error reading database file:', err);
     return {
@@ -182,6 +114,57 @@ function readLocalDb() {
       supportMessages: []
     };
   }
+}
+
+function createInitialDb() {
+  const initialDb = {
+    users: [],
+    transactions: [],
+    kycSubmissions: [],
+    settings: { ...DEFAULT_SETTINGS },
+    botConfig: { ...DEFAULT_BOT_CONFIG },
+    botTrades: [...DEFAULT_BOT_TRADES],
+    supportMessages: []
+  };
+  initialDb.users.push({
+    id: 'admin-001',
+    username: 'admin',
+    email: 'admin@nexoratrading.com',
+    passwordHash: bcrypt.hashSync('admin123', bcrypt.genSaltSync(10)),
+    role: 'ADMIN',
+    fullName: 'System Administrator',
+    phone: '+1 (555) 019-2834',
+    dob: '1985-01-01',
+    address: 'HQ Financial District, New York, NY',
+    aadharNo: 'N/A',
+    panNo: 'N/A',
+    initialBalance: 0,
+    dailyGrowthRate: 0,
+    growthStartDate: new Date().toISOString(),
+    manualAdjustment: 0,
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString()
+  });
+  return initialDb;
+}
+
+function normalizeStore(store) {
+  const normalized = store && typeof store === 'object' ? store : {};
+  if (!Array.isArray(normalized.users)) normalized.users = [];
+  normalized.users.forEach(user => {
+    if (!user.referralCode) user.referralCode = generateReferralCode(user.username);
+    if (!Array.isArray(user.referrals)) user.referrals = [];
+    if (user.totalReferralEarnings === undefined) user.totalReferralEarnings = 0;
+    if (user.bonusBalance === undefined) user.bonusBalance = 0;
+    if (user.investedAmount === undefined) user.investedAmount = Number(user.initialBalance) || 200;
+  });
+  if (!Array.isArray(normalized.transactions)) normalized.transactions = [];
+  if (!Array.isArray(normalized.kycSubmissions)) normalized.kycSubmissions = [];
+  if (!Array.isArray(normalized.botTrades)) normalized.botTrades = [...DEFAULT_BOT_TRADES];
+  if (!Array.isArray(normalized.supportMessages)) normalized.supportMessages = [];
+  normalized.settings = { ...DEFAULT_SETTINGS, ...normalized.settings };
+  normalized.botConfig = { ...DEFAULT_BOT_CONFIG, ...normalized.botConfig };
+  return normalized;
 }
 
 function writeLocalDb(data) {
@@ -210,39 +193,49 @@ function readDb() {
 
 function writeDb(data) {
   memoryStore = data;
-  writeLocalDb(data);
+  if (databaseMode === 'LOCAL_JSON') {
+    writeLocalDb(data);
+    return;
+  }
 
-  if (mongoCollection) {
-    mongoCollection.updateOne(
-      { _id: 'main_store' },
-      { $set: data },
-      { upsert: true }
-    ).then(() => {
-      console.log(`☁️ Synced to MongoDB Atlas cloud successfully (${data.users?.length} users, ${data.transactions?.length} transactions).`);
-    }).catch(err => {
-      console.error('MongoDB cloud sync error:', err.message);
-      mongoLastError = err;
-    });
-  } else if (process.env.MONGODB_URI && !isConnecting) {
-    connectToMongo(process.env.MONGODB_URI).then(col => {
-      if (col) {
-        col.updateOne({ _id: 'main_store' }, { $set: data }, { upsert: true }).catch(err => {
-          console.error('MongoDB cloud sync error:', err.message);
-        });
-      }
-    }).catch(() => {});
+  if (!supabaseClient) {
+    throw new Error('Supabase is not initialized; refusing to write data to temporary local storage.');
+  }
+
+  const snapshot = JSON.parse(JSON.stringify(data));
+  pendingWrite = pendingWrite.catch(() => {}).then(() => persistStoreSnapshot(snapshot));
+  pendingWrite.catch(err => {
+    lastDatabaseError = err.message;
+    console.error('Supabase database write error:', err.message);
+  });
+}
+
+async function persistStoreSnapshot(data) {
+  const { error } = await supabaseClient
+    .from('app_store')
+    .upsert({ id: STORE_ID, data, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+
+  if (error) {
+    lastDatabaseError = error.message;
+    throw new Error(`Supabase database write failed: ${error.message}`);
+  }
+
+  lastDatabaseError = null;
+}
+
+export async function flushDatabase() {
+  if (databaseMode === 'SUPABASE') {
+    await pendingWrite;
   }
 }
 
 export function getDatabaseStatus() {
-  if (!mongoCollection && process.env.MONGODB_URI && !isConnecting) {
-    connectToMongo(process.env.MONGODB_URI).catch(() => {});
-  }
+  const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
   return {
-    databaseMode: mongoCollection ? 'MONGODB_ATLAS' : (process.env.MONGODB_URI ? 'FALLBACK_LOCAL_DUE_TO_ERROR' : 'LOCAL_JSON'),
-    connected: !!mongoCollection,
-    mongoUriConfigured: !!process.env.MONGODB_URI,
-    lastMongoError: mongoLastError ? mongoLastError.message : null,
+    databaseMode,
+    connected: databaseMode === 'SUPABASE',
+    supabaseConfigured,
+    lastDatabaseError,
     totalUsers: (memoryStore?.users || []).length,
     timestamp: new Date().toISOString()
   };
