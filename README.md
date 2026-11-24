@@ -82,17 +82,19 @@ The application can be deployed with free automated SSL domains:
 2. In the Supabase SQL Editor, run the contents of [`server/supabase/schema.sql`](./server/supabase/schema.sql).
 3. Copy the project URL and the server-side service-role key. Keep the service-role key private; never add it to Vercel or frontend code.
 
-### Step 2: Migrate existing application data
+### Step 2: Export and migrate existing application data
+If you have existing data in MongoDB Atlas, export the `NexoraTrading.app_store` collection as JSON using Atlas Data Explorer or MongoDB Compass. Save the export outside the repository; it contains private user information. The importer reads a JSON document, JSON array, or newline-delimited JSON export and does not connect to MongoDB.
+
 Run the migration from a trusted local machine before deploying the new backend:
 
 ```powershell
-$env:SUPABASE_URL = "https://<project-ref>.supabase.co"
-$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>"
-$env:MONGODB_URI = "<existing MongoDB Atlas connection string>"
+$env:SUPABASE_URL = 'https://<project-ref>.supabase.co'
+$env:SUPABASE_SERVICE_ROLE_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Supabase service-role key' -AsSecureString)).Password
+$env:SUPABASE_IMPORT_FILE = 'C:\path\to\app-store-export.json'
 npm --prefix server run migrate:supabase
 ```
 
-The migration copies users, transactions, KYC submission records, settings, and other application data. Uploaded KYC files themselves remain in `server/uploads` and are not copied. If MongoDB is not being used, omit `MONGODB_URI` and the script imports `server/data/store.json` instead. It refuses to overwrite an existing Supabase store unless `--overwrite` is explicitly supplied. Keep the source database until you have verified the migrated accounts.
+The migration copies users, transactions, KYC submission records, settings, and other application data. If your source is a MongoDB export, make sure it contains the `main_store` document. The application and importer do not connect to MongoDB; after exporting the data, the old MongoDB URI is no longer needed. Uploaded KYC files themselves remain in `server/uploads` and are not copied. The importer requires an explicit `SUPABASE_IMPORT_FILE` and refuses to overwrite an existing Supabase store unless `--overwrite` is explicitly supplied. Verify the migrated counts before deploying, and keep the export until you have checked the accounts.
 
 ### Step 3: Deploy Backend to Render (render.com)
 1. Sign up/Log in at [render.com](https://render.com) using your GitHub account.
